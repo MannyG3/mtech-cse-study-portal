@@ -1,22 +1,30 @@
-// M.Tech Computer Engineering Curriculum & Study Companion
-// Calm, Editorial Design System (Linear / Notion / Readwise Inspired)
-// NEP-2020 Pattern (2026 Academic Pattern)
+// M.Tech Computer Engineering Academic & Research Workspace
+// Comprehensive Modern Implementation conforming to NEP-2020 (2026 Pattern)
 
 import './style.css';
 import { CURRICULUM_METADATA, SEMESTERS } from './data/curriculum.js';
 import { SUBJECT_NOTES } from './data/notes.js';
 import { LAB_ASSIGNMENTS } from './data/labData.js';
+import { RESEARCH_PAPERS } from './data/researchPapers.js';
+import { ACADEMIC_RESOURCES } from './data/resources.js';
 import { findAiResponse } from './data/aiKnowledgeBase.js';
 import { QUIZ_QUESTIONS, FLASHCARD_DECKS } from './data/quizData.js';
 import { 
   state, 
   saveState, 
+  trackRecentlyViewed, 
+  toggleBookmarkItem, 
+  isItemBookmarked, 
   toggleUnitCompleted, 
   toggleTopicChecked, 
+  addStudyTask, 
+  toggleTaskCompleted, 
+  deleteStudyTask, 
+  setPaperStatus, 
+  savePaperNote, 
   saveStudentNote 
 } from './state.js';
 import { marked } from 'marked';
-import confetti from 'canvas-confetti';
 import { createIcons, icons } from 'lucide';
 
 // Configure marked
@@ -29,24 +37,7 @@ const appEl = document.getElementById('app');
 
 // Helper: Format credit string properly
 function formatCredits(count) {
-  if (count === 1) return "1 credit";
-  return `${count} credits`;
-}
-
-// Helper: Format teaching scheme hours cleanly
-function formatTeachingScheme(scheme) {
-  if (!scheme) return "";
-  const parts = [];
-  if (scheme.lectures && scheme.lectures > 0) {
-    parts.push(`${scheme.lectures} hrs/wk lecture`);
-  }
-  if (scheme.practical && scheme.practical > 0) {
-    parts.push(`${scheme.practical} hrs/wk practical`);
-  }
-  if (scheme.tutorial && scheme.tutorial > 0) {
-    parts.push(`${scheme.tutorial} hrs/wk tutorial`);
-  }
-  return parts.join(" • ");
+  return count === 1 ? "1 credit" : `${count} credits`;
 }
 
 // Helper: Format Pomodoro Time
@@ -67,30 +58,31 @@ function renderApp() {
   const activeCourse = activeSem.courses.find(c => c.code === state.activeCourseCode) || activeSem.courses[0];
   const notesData = SUBJECT_NOTES[activeCourse.code] || null;
 
-  // Compute overall curriculum progress
+  // Calculate Progress
   const totalUnits = SEMESTERS[0].courses.reduce((acc, c) => acc + (c.units ? c.units.length : 0), 0);
   const completedCount = state.completedUnits.length;
   const progressPercent = totalUnits > 0 ? Math.round((completedCount / totalUnits) * 100) : 0;
 
-  // Split courses by Core (PCC) vs Electives (PEC / VSEC / Lab)
+  // Separate Core and Elective courses
   const coreCourses = activeSem.courses.filter(c => c.type === 'PCC');
   const electiveCourses = activeSem.courses.filter(c => c.type !== 'PCC');
 
   appEl.innerHTML = `
-    <!-- Quiet Header Navbar -->
+    <!-- Top Site Header -->
     <header class="site-header">
       <div class="header-left">
-        <button class="btn-quiet-icon" id="toggleMobileNav" title="Toggle Navigation" style="display:none;" class="mobile-toggle">
+        <button class="btn-icon-square" id="toggleMobileNavBtn" style="display:none;" title="Toggle Navigation">
           <i data-lucide="menu" style="width:16px; height:16px;"></i>
         </button>
 
-        <div class="header-brand">
-          <span class="header-title">M.Tech Computer Engineering</span>
-          <span class="header-subtitle">• NEP-2020</span>
+        <div class="header-brand" id="brandHomeNav">
+          <div class="header-logo-icon">M</div>
+          <div class="header-title-text">M.Tech CSE Workspace</div>
+          <span class="badge-tag">2026 PATTERN</span>
         </div>
 
-        <!-- Semester Selector -->
-        <select class="semester-select" id="semSelect" aria-label="Select Semester">
+        <!-- Semester Switcher -->
+        <select class="semester-dropdown" id="semesterSelector" aria-label="Select Semester">
           ${SEMESTERS.map(s => `
             <option value="${s.id}" ${s.id === state.activeSemesterId ? 'selected' : ''}>
               ${s.name} (${s.totalCredits} credits)
@@ -100,355 +92,332 @@ function renderApp() {
       </div>
 
       <div class="header-right">
-        <!-- Quiet Pomodoro Control -->
-        <button class="timer-control ${state.pomodoro.isRunning ? 'running' : ''}" id="timerToggleBtn" title="Focus Timer: Click to Start / Pause">
-          <span class="timer-indicator-dot"></span>
-          <span id="timerDigits">${formatTime(state.pomodoro.seconds)}</span>
+        <!-- Quiet Pomodoro Focus Timer -->
+        <button class="timer-pill-btn ${state.pomodoro.isRunning ? 'running' : ''}" id="timerWidgetBtn" title="Focus Timer: Click to Start / Pause">
+          <i data-lucide="clock" style="width:13px; height:13px;"></i>
+          <span id="timerDigitEl">${formatTime(state.pomodoro.seconds)}</span>
           <span style="font-size:0.65rem; color:var(--text-dim);">${state.pomodoro.mode === 'work' ? 'FOCUS' : 'BREAK'}</span>
         </button>
 
         <!-- Command Palette Trigger -->
-        <button class="search-btn" id="openSearchBtn">
+        <button class="search-command-btn" id="openCommandPaletteBtn">
           <i data-lucide="search" style="width:13px; height:13px;"></i>
-          <span>Search...</span>
-          <kbd class="search-kbd">Ctrl K</kbd>
+          <span>Search or jump to...</span>
+          <kbd class="kbd-shortcut">Ctrl K</kbd>
         </button>
 
-        <!-- Study Tools Dropdown Trigger -->
-        <button class="btn-nav-action" id="openStudyMenuBtn">
-          <i data-lucide="compass" style="width:14px; height:14px;"></i>
-          <span>Study Tools</span>
-        </button>
-
-        <!-- AI Tutor Drawer Trigger -->
-        <button class="btn-nav-action" id="openAiDrawerBtn">
-          <i data-lucide="message-square" style="width:14px; height:14px;"></i>
+        <!-- AI Tutor Trigger -->
+        <button class="btn-header-action" id="openAiDrawerTrigger">
+          <i data-lucide="sparkles" style="width:14px; height:14px; color:var(--accent);"></i>
           <span>AI Tutor</span>
         </button>
 
         <!-- Right Panel Toggle -->
-        <button class="btn-quiet-icon ${state.isRightSidebarOpen ? 'active' : ''}" id="toggleRightPanelBtn" title="Toggle Right Sidebar">
-          <i data-lucide="sidebar" style="width:15px; height:15px;"></i>
-        </button>
+        ${state.activeView === 'course' ? `
+          <button class="btn-icon-square ${state.isRightSidebarOpen ? 'active' : ''}" id="toggleRightPanelBtn" title="Toggle Scratchpad & Outcomes">
+            <i data-lucide="sidebar" style="width:15px; height:15px;"></i>
+          </button>
+        ` : ''}
 
-        <!-- Theme Toggle -->
-        <button class="btn-quiet-icon" id="toggleThemeBtn" title="Toggle Light / Dark Theme">
+        <!-- Theme Switcher -->
+        <button class="btn-icon-square" id="themeSwitchBtn" title="Toggle Dark/Light Mode">
           <i data-lucide="${state.theme === 'dark' ? 'sun' : 'moon'}" style="width:15px; height:15px;"></i>
         </button>
       </div>
     </header>
 
-    <!-- Three-Column Layout -->
-    <div class="layout-container ${!state.isRightSidebarOpen ? 'panel-collapsed' : ''}">
-      <!-- Left Slim Navigation -->
-      <aside class="sidebar-left ${state.mobileSidebarOpen ? 'mobile-open' : ''}" id="sidebarLeft">
-        <!-- Minimal Progress Line -->
-        <div class="progress-summary-box">
-          <div class="progress-label-row">
-            <span class="progress-text">Syllabus Progress</span>
-            <span class="progress-subtext">
-              ${completedCount === 0 ? 'Start with Unit 1' : `${completedCount} of ${totalUnits} units (${progressPercent}%)`}
-            </span>
-          </div>
-          <div class="progress-bar-track">
-            <div class="progress-bar-indicator" style="width: ${progressPercent}%;"></div>
-          </div>
-        </div>
+    <!-- Workspace Layout -->
+    <div class="workspace-container ${!state.isRightSidebarOpen || state.activeView !== 'course' ? 'panel-collapsed' : ''}">
+      <!-- Left Sidebar -->
+      <aside class="sidebar-left ${state.mobileSidebarOpen ? 'mobile-open' : ''}" id="leftSidebar">
+        <!-- Main Navigation Links -->
+        <nav class="sidebar-main-nav">
+          <button class="nav-link-btn ${state.activeView === 'dashboard' ? 'active' : ''}" data-nav-view="dashboard">
+            <i data-lucide="layout-dashboard" style="width:15px; height:15px;"></i>
+            <span>Academic Dashboard</span>
+          </button>
+          <button class="nav-link-btn ${state.activeView === 'resources' ? 'active' : ''}" data-nav-view="resources">
+            <i data-lucide="book-marked" style="width:15px; height:15px;"></i>
+            <span>Resource Library</span>
+          </button>
+          <button class="nav-link-btn ${state.activeView === 'planner' ? 'active' : ''}" data-nav-view="planner">
+            <i data-lucide="calendar" style="width:15px; height:15px;"></i>
+            <span>Study Planner (${state.studyTasks.filter(t => !t.completed).length})</span>
+          </button>
+          <button class="nav-link-btn ${state.activeView === 'research' ? 'active' : ''}" data-nav-view="research">
+            <i data-lucide="file-text" style="width:15px; height:15px;"></i>
+            <span>Research Workspace</span>
+          </button>
+          <button class="nav-link-btn ${state.activeView === 'bookmarks' ? 'active' : ''}" data-nav-view="bookmarks">
+            <i data-lucide="bookmark" style="width:15px; height:15px;"></i>
+            <span>Saved Bookmarks (${state.bookmarks.length})</span>
+          </button>
+        </nav>
 
-        <!-- Subject List: Core Courses -->
+        <hr style="border:none; border-top:1px solid var(--border-subtle); margin:0.35rem 0;" />
+
+        <!-- Subject Curriculum List -->
         <div>
-          <div class="nav-group-title">Core Courses</div>
-          <nav class="subject-nav-list">
-            ${coreCourses.map(course => renderSubjectNavRow(course)).join('')}
-          </nav>
+          <div class="nav-section-title">Core Subjects (PCC)</div>
+          <div style="display:flex; flex-direction:column; gap:0.2rem;">
+            ${coreCourses.map(c => renderSidebarCourseRow(c)).join('')}
+          </div>
         </div>
 
-        <!-- Subject List: Electives & Labs -->
         ${electiveCourses.length > 0 ? `
           <div>
-            <div class="nav-group-title">Electives & Practical</div>
-            <nav class="subject-nav-list">
-              ${electiveCourses.map(course => renderSubjectNavRow(course)).join('')}
-            </nav>
+            <div class="nav-section-title">Electives & Practical</div>
+            <div style="display:flex; flex-direction:column; gap:0.2rem;">
+              ${electiveCourses.map(c => renderSidebarCourseRow(c)).join('')}
+            </div>
           </div>
         ` : ''}
 
-        <!-- Bottom Tools Shortcuts -->
-        <div class="sidebar-bottom-tools">
-          <button class="sidebar-tool-link" id="sidePracticeQuiz">
+        <!-- Sidebar Footer Tools -->
+        <div style="margin-top:auto; padding-top:0.75rem; border-top:1px solid var(--border-subtle); display:flex; flex-direction:column; gap:0.25rem;">
+          <button class="nav-link-btn" id="openQuizShortcut">
             <i data-lucide="check-circle-2" style="width:14px; height:14px;"></i>
-            <span>Practice Quiz</span>
+            <span>Practice Exam Quiz</span>
           </button>
-          <button class="sidebar-tool-link" id="sideFlashcards">
+          <button class="nav-link-btn" id="openFlashShortcut">
             <i data-lucide="layers" style="width:14px; height:14px;"></i>
             <span>Revision Flashcards</span>
           </button>
-          <button class="sidebar-tool-link" id="sideMarkTarget">
+          <button class="nav-link-btn" id="openCalcShortcut">
             <i data-lucide="calculator" style="width:14px; height:14px;"></i>
             <span>Target Mark Calculator</span>
-          </button>
-          <button class="sidebar-tool-link" id="sideLabHub">
-            <i data-lucide="terminal" style="width:14px; height:14px;"></i>
-            <span>Lab Practice I Sandbox</span>
           </button>
         </div>
       </aside>
 
-      <!-- Center Reading Column -->
-      <main class="main-column">
-        ${renderCourseHeader(activeCourse)}
-        ${renderStickyTabs(activeCourse)}
-        ${renderTabContent(activeCourse, notesData)}
+      <!-- Center Main Content Column -->
+      <main class="main-content-column">
+        ${renderActiveWorkspaceView(activeCourse, notesData)}
       </main>
 
-      <!-- Right Collapsible Panel: TOC & Scratchpad -->
-      ${state.isRightSidebarOpen ? renderRightPanel(activeCourse) : ''}
+      <!-- Right Panel: Course Outcomes & Scratchpad -->
+      ${state.activeView === 'course' && state.isRightSidebarOpen ? renderRightPanel(activeCourse) : ''}
     </div>
 
     <!-- AI Tutor Side Drawer -->
-    ${state.isAiDrawerOpen ? renderAiDrawer(activeCourse) : ''}
+    ${state.isAiDrawerOpen ? renderAiSideDrawer(activeCourse) : ''}
 
-    <!-- Command Palette & Modals -->
-    <div id="modalHost">
-      ${renderActiveModal()}
+    <!-- Modal Host Layer -->
+    <div id="modalHostLayer">
+      ${renderActiveModalLayer()}
     </div>
 
-    <!-- Quiet Toast Notification Host -->
-    <div class="toast-host" id="toastHost"></div>
+    <!-- Toast Notification Host -->
+    <div class="toast-container" id="toastHost"></div>
   `;
 
-  // Render crisp line icons with Lucide
+  // Render Lucide crisp line icons
   createIcons({ icons });
 
-  // Attach all event listeners
+  // Attach event handlers
   attachEventListeners();
 }
 
 // ============================================================================
-// Render Subject Row (Left Navigation)
+// Render Sidebar Course Row
 // ============================================================================
 
-function renderSubjectNavRow(course) {
-  const isActive = course.code === state.activeCourseCode;
+function renderSidebarCourseRow(course) {
+  const isSelected = state.activeView === 'course' && course.code === state.activeCourseCode;
   return `
-    <button class="subject-nav-row ${isActive ? 'active' : ''}" data-nav-code="${course.code}">
-      <span class="subject-row-name">${course.title}</span>
-      <span class="subject-row-meta">${course.code} • ${formatCredits(course.credits)}</span>
+    <button class="course-item-row ${isSelected ? 'active' : ''}" data-select-course="${course.code}">
+      <span class="course-item-title">${course.title}</span>
+      <span class="course-item-meta">${course.code} • ${formatCredits(course.credits)}</span>
     </button>
   `;
 }
 
 // ============================================================================
-// Render Course Header Section
+// Render Main Content View Router
 // ============================================================================
 
-function renderCourseHeader(course) {
-  const teachingText = formatTeachingScheme(course.teachingScheme);
-  const isLab = course.type === 'PCC_LAB' || course.code === '2604PCC526';
+function renderActiveWorkspaceView(activeCourse, notesData) {
+  if (state.activeView === 'dashboard') {
+    return renderDashboardView();
+  } else if (state.activeView === 'resources') {
+    return renderResourceLibraryView();
+  } else if (state.activeView === 'planner') {
+    return renderPlannerView();
+  } else if (state.activeView === 'research') {
+    return renderResearchWorkspaceView();
+  } else if (state.activeView === 'bookmarks') {
+    return renderBookmarksView();
+  } else if (state.activeView === 'course') {
+    return renderCourseWorkspaceView(activeCourse, notesData);
+  }
+  return renderDashboardView();
+}
+
+// ============================================================================
+// VIEW 1: Modern Academic Dashboard
+// ============================================================================
+
+function renderDashboardView() {
+  const activeSem = SEMESTERS.find(s => s.id === state.activeSemesterId) || SEMESTERS[0];
+  const pendingTasks = state.studyTasks.filter(t => !t.completed);
+  const totalUnits = SEMESTERS[0].courses.reduce((acc, c) => acc + (c.units ? c.units.length : 0), 0);
+  const completedUnitsCount = state.completedUnits.length;
+  const progressPercent = totalUnits > 0 ? Math.round((completedUnitsCount / totalUnits) * 100) : 0;
+
+  // Last visited course or default
+  const lastVisitedCode = state.recentlyViewed.length > 0 ? state.recentlyViewed[0].code : "2604PCC501";
+  const lastCourse = activeSem.courses.find(c => c.code === lastVisitedCode) || activeSem.courses[0];
 
   return `
-    <header class="course-header-area" id="courseHeaderSection">
-      <div class="course-meta-top">
-        <span class="tag-quiet">${course.code}</span>
-        <span class="tag-quiet">${course.typeFullName || course.type}</span>
-        <span class="tag-quiet">${formatCredits(course.credits)}</span>
-        ${teachingText ? `<span class="tag-quiet">${teachingText}</span>` : ''}
+    <!-- Welcome Header Banner -->
+    <div class="dashboard-welcome-banner">
+      <div class="welcome-row-top">
+        <div>
+          <span class="badge-tag">Academic Year 2026–27</span>
+          <h1 class="welcome-heading" style="margin-top:0.4rem;">M.Tech Computer Engineering Workspace</h1>
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--text-dim); text-align:right;">
+          ${CURRICULUM_METADATA.institution}<br/>
+          Autonomous NEP-2020 Curriculum
+        </div>
       </div>
+      <p class="welcome-sub">
+        Welcome to your integrated research, syllabus notes, and laboratory simulation workspace. Track masteries, review seminar literature, and plan study milestones.
+      </p>
 
-      <h1 class="course-display-title">${course.title}</h1>
-      <p class="course-editorial-desc">${course.description || 'Curriculum framework conforming to autonomous NEP-2020 guidelines.'}</p>
+      <!-- Quick Action Buttons -->
+      <div style="display:flex; gap:0.65rem; flex-wrap:wrap;">
+        <button class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent);" id="resumeStudyingBtn" data-jump-course="${lastCourse.code}">
+          <i data-lucide="play" style="width:14px; height:14px;"></i>
+          <span>Continue: ${lastCourse.title}</span>
+        </button>
+        <button class="btn-header-action" id="dashOpenPlannerBtn">
+          <i data-lucide="calendar-plus" style="width:14px; height:14px;"></i>
+          <span>Add Study Task</span>
+        </button>
+        <button class="btn-header-action" id="dashOpenResearchBtn">
+          <i data-lucide="file-text" style="width:14px; height:14px;"></i>
+          <span>Research Papers (${RESEARCH_PAPERS.length})</span>
+        </button>
+      </div>
+    </div>
 
-      <!-- Primary Action Row -->
-      <div class="course-action-bar">
-        ${isLab ? `
-          <button class="btn-primary-action" id="actionPrimaryLab">
-            <i data-lucide="play" style="width:14px; height:14px;"></i>
-            <span>Open Lab Simulators</span>
+    <!-- Quick Stat Tiles -->
+    <div class="dashboard-stats-grid">
+      <div class="stat-tile-card">
+        <span class="stat-tile-label">Syllabus Mastered</span>
+        <span class="stat-tile-value">${completedUnitsCount} / ${totalUnits}</span>
+        <span class="stat-tile-desc">${progressPercent}% total curriculum progress</span>
+      </div>
+      <div class="stat-tile-card">
+        <span class="stat-tile-label">Pending Study Tasks</span>
+        <span class="stat-tile-value" style="color:var(--accent);">${pendingTasks.length}</span>
+        <span class="stat-tile-desc">${state.studyTasks.filter(t => t.completed).length} tasks completed</span>
+      </div>
+      <div class="stat-tile-card">
+        <span class="stat-tile-label">Saved Bookmarks</span>
+        <span class="stat-tile-value">${state.bookmarks.length}</span>
+        <span class="stat-tile-desc">Topics, codes & papers</span>
+      </div>
+      <div class="stat-tile-card">
+        <span class="stat-tile-label">Seminal Papers</span>
+        <span class="stat-tile-value">${RESEARCH_PAPERS.length}</span>
+        <span class="stat-tile-desc">Mapped to syllabus units</span>
+      </div>
+    </div>
+
+    <!-- Two-Column Split: Tasks & Recently Viewed -->
+    <div class="dashboard-split-grid">
+      <!-- Left Panel: Upcoming Deadlines & Tasks -->
+      <div class="dashboard-panel-box">
+        <div class="panel-header-line">
+          <span class="panel-title-text">Upcoming Study Tasks & Deadlines</span>
+          <button class="btn-header-action" style="padding:0.2rem 0.5rem; font-size:var(--text-xs);" id="dashAddTaskModalBtn">
+            <i data-lucide="plus" style="width:12px; height:12px;"></i>
+            <span>New Task</span>
           </button>
+        </div>
+
+        ${pendingTasks.length === 0 ? `
+          <div style="font-size:var(--text-xs); color:var(--text-dim); padding:1.5rem; text-align:center;">
+            No pending tasks. You are all caught up!
+          </div>
         ` : `
-          <button class="btn-primary-action" id="actionContinueUnit">
-            <i data-lucide="book-open" style="width:14px; height:14px;"></i>
-            <span>Continue Unit 1</span>
-          </button>
+          <div style="display:flex; flex-direction:column;">
+            ${pendingTasks.slice(0, 4).map(task => `
+              <div class="task-row-item">
+                <input type="checkbox" style="margin-top:3px; accent-color:var(--accent); cursor:pointer;" data-dash-toggle-task="${task.id}" />
+                <div style="flex:1;">
+                  <div class="task-title-cell">${task.title}</div>
+                  <div class="task-meta-cell">
+                    <span class="priority-tag priority-${task.priority}">${task.priority}</span>
+                    <span>•</span>
+                    <span>Due: ${task.dueDate || 'No date'}</span>
+                    <span>•</span>
+                    <span>${task.courseCode}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
         `}
-
-        <button class="btn-secondary-action" id="actionAskCourseAi">
-          <i data-lucide="message-square" style="width:14px; height:14px;"></i>
-          <span>Ask AI Tutor</span>
-        </button>
-
-        <button class="btn-secondary-action" id="actionPrintNotes" title="Printable syllabus view">
-          <i data-lucide="printer" style="width:14px; height:14px;"></i>
-          <span>Print Syllabus</span>
-        </button>
       </div>
 
-      <!-- Compact Exam Scheme Stat Row -->
-      <div class="exam-stat-row">
-        <div class="exam-stat-header">
-          <span>Evaluation Weightage (Autonomous 2026 Pattern)</span>
-          <span style="color:var(--text-main); font-weight:600;">Total: 100 Marks</span>
+      <!-- Right Panel: Recently Viewed Resources -->
+      <div class="dashboard-panel-box">
+        <div class="panel-header-line">
+          <span class="panel-title-text">Recently Viewed Resources</span>
+          <span style="font-size:var(--text-xs); color:var(--text-dim);">${state.recentlyViewed.length} items</span>
         </div>
-        <div class="exam-single-bar">
-          <div class="seg-tae" title="Teacher Assessment Exam (20%)"></div>
-          <div class="seg-cae" title="Continuous Assessment Mid-Sem (20%)"></div>
-          <div class="seg-ese" title="End-Semester Autonomous Exam (60%)"></div>
-        </div>
-        <div class="exam-legend-row">
-          <div class="exam-legend-item">
-            <span class="legend-swatch" style="background:var(--seg-tae);"></span>
-            <span>TAE: <strong>${course.examScheme?.tae ?? 20} Marks</strong> (20%)</span>
+
+        ${state.recentlyViewed.length === 0 ? `
+          <div style="font-size:var(--text-xs); color:var(--text-dim); padding:1.5rem; text-align:center;">
+            No recently opened items yet. Start exploring subjects or lab manuals!
           </div>
-          <div class="exam-legend-item">
-            <span class="legend-swatch" style="background:var(--seg-cae);"></span>
-            <span>CAE: <strong>${course.examScheme?.cae ?? 20} Marks</strong> (20%)</span>
+        ` : `
+          <div style="display:flex; flex-direction:column; gap:0.4rem;">
+            ${state.recentlyViewed.slice(0, 5).map(item => `
+              <div class="task-row-item" style="cursor:pointer;" data-jump-recent-id="${item.id}" data-jump-recent-code="${item.code || ''}" data-jump-recent-tab="${item.tab || 'units'}">
+                <i data-lucide="file-text" style="width:15px; height:15px; color:var(--accent); flex-shrink:0; margin-top:2px;"></i>
+                <div style="flex:1;">
+                  <div class="task-title-cell">${item.title}</div>
+                  <div class="task-meta-cell">${item.subtitle || ''}</div>
+                </div>
+              </div>
+            `).join('')}
           </div>
-          <div class="exam-legend-item">
-            <span class="legend-swatch" style="background:var(--seg-ese);"></span>
-            <span>ESE: <strong>${course.examScheme?.ese ?? 60} Marks</strong> (60%)</span>
-          </div>
-        </div>
+        `}
       </div>
-    </header>
-  `;
-}
+    </div>
 
-// ============================================================================
-// Sticky Tabs with Underline Indicator
-// ============================================================================
+    <!-- Semester Course Shortcuts -->
+    <div style="margin-bottom:1rem; display:flex; align-items:center; justify-content:space-between;">
+      <h3 style="font-size:var(--text-md); font-weight:600; color:var(--text-main);">
+        ${activeSem.name} Subjects & Framework
+      </h3>
+      <span style="font-size:var(--text-xs); color:var(--text-dim);">
+        ${activeSem.courses.length} subjects • ${activeSem.totalCredits} credits total
+      </span>
+    </div>
 
-function renderStickyTabs(course) {
-  const isLabCourse = course.type === 'PCC_LAB' || course.code === '2604PCC526';
-
-  return `
-    <nav class="sticky-tabs-wrapper" aria-label="Course Sections">
-      <button class="underline-tab-btn ${state.activeTab === 'units' ? 'active' : ''}" data-tab="units">
-        <i data-lucide="book-open" style="width:14px; height:14px;"></i>
-        <span>Syllabus & Units</span>
-      </button>
-
-      <button class="underline-tab-btn ${state.activeTab === 'notes' ? 'active' : ''}" data-tab="notes">
-        <i data-lucide="file-text" style="width:14px; height:14px;"></i>
-        <span>Study Notes</span>
-      </button>
-
-      ${(isLabCourse || course.parts) ? `
-        <button class="underline-tab-btn ${state.activeTab === 'lab' ? 'active' : ''}" data-tab="lab">
-          <i data-lucide="terminal" style="width:14px; height:14px;"></i>
-          <span>Lab Practice Assignments</span>
-        </button>
-      ` : ''}
-
-      <button class="underline-tab-btn ${state.activeTab === 'questions' ? 'active' : ''}" data-tab="questions">
-        <i data-lucide="help-circle" style="width:14px; height:14px;"></i>
-        <span>Question Bank</span>
-      </button>
-
-      <button class="underline-tab-btn ${state.activeTab === 'books' ? 'active' : ''}" data-tab="books">
-        <i data-lucide="library" style="width:14px; height:14px;"></i>
-        <span>Textbooks</span>
-      </button>
-    </nav>
-  `;
-}
-
-// ============================================================================
-// Render Tab Content Panes
-// ============================================================================
-
-function renderTabContent(course, notesData) {
-  if (state.activeTab === 'units') {
-    return renderUnitsPane(course);
-  } else if (state.activeTab === 'notes') {
-    return renderNotesPane(course, notesData);
-  } else if (state.activeTab === 'lab') {
-    return renderLabPane(course);
-  } else if (state.activeTab === 'questions') {
-    return renderQuestionsPane(course, notesData);
-  } else if (state.activeTab === 'books') {
-    return renderBooksPane(course);
-  }
-  return renderUnitsPane(course);
-}
-
-// 1. Units Pane with Helpful Empty State
-function renderUnitsPane(course) {
-  // If the course doesn't have lecture units (e.g. Lab Practice I), render helpful empty state
-  if (!course.units || course.units.length === 0) {
-    return `
-      <div class="empty-state-card">
-        <h3 class="empty-state-title">Practical & Experiential Learning Course</h3>
-        <p class="empty-state-desc">
-          This course focuses on hands-on software development, database querying, and distributed system simulations rather than standard lecture modules.
-        </p>
-        <div class="empty-state-actions">
-          <button class="btn-primary-action" id="emptyStateJumpLab">
-            <i data-lucide="terminal" style="width:14px; height:14px;"></i>
-            <span>View Lab Practice Assignments</span>
-          </button>
-          <button class="btn-secondary-action" id="emptyStateAskAi">
-            <i data-lucide="message-square" style="width:14px; height:14px;"></i>
-            <span>Ask AI for Guidance</span>
-          </button>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="units-editorial-stack">
-      ${course.units.map((unit, uIdx) => {
-        const unitId = `${course.code}_unit_${uIdx}`;
-        const isMastered = state.completedUnits.includes(unitId);
-
+    <div class="subjects-summary-grid">
+      ${activeSem.courses.map(course => {
+        const uCount = course.units ? course.units.length : 0;
         return `
-          <div class="unit-row-card ${uIdx === 0 ? 'open' : ''}" id="unitCard_${uIdx}">
-            <div class="unit-row-header" data-toggle-unit="${uIdx}">
-              <div class="unit-header-left">
-                <span class="unit-label-serif">${unit.unitNo}</span>
-                <span class="unit-title-text">${unit.title}</span>
-              </div>
-              <div class="unit-header-right">
-                <span class="unit-time-tag">${unit.hours} hrs</span>
-                <label class="unit-done-toggle" onclick="event.stopPropagation();">
-                  <input type="checkbox" class="mastery-check" data-unit-id="${unitId}" ${isMastered ? 'checked' : ''}/>
-                  <span>${isMastered ? 'Done' : 'Mark complete'}</span>
-                </label>
-                <i data-lucide="chevron-down" style="width:15px; height:15px; color:var(--text-muted);"></i>
-              </div>
+          <div class="subject-summary-tile" data-select-course="${course.code}">
+            <div class="subject-tile-header">
+              <span class="badge-tag">${course.code}</span>
+              <span style="font-size:var(--text-xs); color:var(--text-dim);">${formatCredits(course.credits)}</span>
             </div>
-
-            <div class="unit-body-content">
-              <div style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.75rem; letter-spacing:0.04em;">
-                Topic Checklist
-              </div>
-
-              <ul class="topic-checklist">
-                ${unit.topics.map((t, tIdx) => {
-                  const topicKey = `${unitId}_topic_${tIdx}`;
-                  const isChecked = state.checkedTopics.includes(topicKey);
-
-                  return `
-                    <li class="topic-check-item ${isChecked ? 'done' : ''}" data-topic-key="${topicKey}">
-                      <span class="checkbox-custom">
-                        ${isChecked ? '<i data-lucide="check" style="width:11px; height:11px;"></i>' : ''}
-                      </span>
-                      <span>${t}</span>
-                    </li>
-                  `;
-                }).join('')}
-              </ul>
-
-              <div class="unit-action-footer">
-                <button class="btn-secondary-action" data-unit-open-notes="${unit.unitNo}">
-                  <i data-lucide="file-text" style="width:13px; height:13px;"></i>
-                  <span>Read Notes</span>
-                </button>
-                <button class="btn-secondary-action" data-unit-ai-explain="${unit.title}">
-                  <i data-lucide="sparkles" style="width:13px; height:13px;"></i>
-                  <span>Explain with AI</span>
-                </button>
-              </div>
+            <h4 style="font-size:var(--text-sm); font-weight:600; color:var(--text-main); margin-bottom:0.35rem;">
+              ${course.title}
+            </h4>
+            <p style="font-size:var(--text-xs); color:var(--text-muted); line-height:1.45; margin-bottom:0.65rem;">
+              ${course.description ? course.description.slice(0, 95) + '...' : 'Syllabus specifications and lecture notes.'}
+            </p>
+            <div style="display:flex; align-items:center; justify-content:space-between; font-size:var(--text-xs); color:var(--text-dim);">
+              <span>${uCount > 0 ? `${uCount} Syllabus Units` : 'Laboratory Project'}</span>
+              <span style="color:var(--accent); font-weight:500;">Open Workspace →</span>
             </div>
           </div>
         `;
@@ -457,203 +426,783 @@ function renderUnitsPane(course) {
   `;
 }
 
-// 2. Study Notes & Formulas Pane
-function renderNotesPane(course, notesData) {
-  if (!notesData?.units || notesData.units.length === 0) {
-    return `
+// ============================================================================
+// VIEW 2: Academic Resource Library
+// ============================================================================
+
+function renderResourceLibraryView() {
+  const { semester, subject, type, search } = state.resourceFilter;
+
+  // Filter items
+  const filtered = ACADEMIC_RESOURCES.filter(r => {
+    if (semester !== 'ALL' && r.semester !== semester) return false;
+    if (subject !== 'ALL' && r.subjectCode !== subject) return false;
+    if (type !== 'ALL' && r.type !== type) return false;
+    if (search && search.trim() !== '') {
+      const q = search.toLowerCase();
+      const match = r.title.toLowerCase().includes(q) || 
+                    r.description.toLowerCase().includes(q) || 
+                    r.subjectTitle.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  return `
+    <div style="margin-bottom:1.5rem;">
+      <h1 class="welcome-heading">Academic Resource Library</h1>
+      <p class="welcome-sub">
+        Browse lecture notes, lab manuals, official syllabus PDF specifications, question banks, and reference documents.
+      </p>
+    </div>
+
+    <!-- Filter & Search Bar -->
+    <div class="resource-filter-bar">
+      <!-- Search Input -->
+      <div style="flex:1; min-width:220px; position:relative;">
+        <input 
+          type="text" 
+          class="input-quiet" 
+          id="resourceSearchInput" 
+          placeholder="Filter resources by title, topic, or keyword..." 
+          value="${state.resourceFilter.search}" 
+          style="width:100%;"
+        />
+      </div>
+
+      <!-- Resource Type Filter -->
+      <select class="semester-dropdown" id="filterResourceType">
+        <option value="ALL" ${type === 'ALL' ? 'selected' : ''}>All Types</option>
+        <option value="Notes" ${type === 'Notes' ? 'selected' : ''}>Lecture Notes</option>
+        <option value="PDF" ${type === 'PDF' ? 'selected' : ''}>Syllabus PDF</option>
+        <option value="Lab Manual" ${type === 'Lab Manual' ? 'selected' : ''}>Lab Manual</option>
+        <option value="Question Bank" ${type === 'Question Bank' ? 'selected' : ''}>Question Bank</option>
+        <option value="Textbook" ${type === 'Textbook' ? 'selected' : ''}>Textbooks</option>
+      </select>
+
+      <!-- Subject Filter -->
+      <select class="semester-dropdown" id="filterResourceSubject">
+        <option value="ALL" ${subject === 'ALL' ? 'selected' : ''}>All Subjects</option>
+        <option value="2604PCC501" ${subject === '2604PCC501' ? 'selected' : ''}>Advanced Algorithms</option>
+        <option value="2604PCC502" ${subject === '2604PCC502' ? 'selected' : ''}>Advanced Database Systems</option>
+        <option value="2604PCC503" ${subject === '2604PCC503' ? 'selected' : ''}>Machine Learning</option>
+        <option value="2604PCC504" ${subject === '2604PCC504' ? 'selected' : ''}>Distributed Computing</option>
+        <option value="2604OE505A" ${subject === '2604OE505A' ? 'selected' : ''}>Data Engineering</option>
+        <option value="2604OE505D" ${subject === '2604OE505D' ? 'selected' : ''}>Quantum Computing</option>
+        <option value="2604PCC526" ${subject === '2604PCC526' ? 'selected' : ''}>Lab Practice - I</option>
+      </select>
+    </div>
+
+    <!-- Results Counter -->
+    <div style="font-size:var(--text-xs); color:var(--text-dim); margin-bottom:1rem;">
+      Showing ${filtered.length} of ${ACADEMIC_RESOURCES.length} resources
+    </div>
+
+    <!-- Resource Cards Grid -->
+    ${filtered.length === 0 ? `
       <div class="empty-state-card">
-        <h3 class="empty-state-title">No Lecture Notes Available</h3>
+        <h3 class="empty-state-title">No Resources Found</h3>
+        <p class="empty-state-desc">No academic resources match your search criteria. Try clearing the filters.</p>
+        <button class="btn-primary-action" id="resetResourceFilterBtn">Clear Filters</button>
+      </div>
+    ` : `
+      <div class="resource-cards-list">
+        ${filtered.map(res => {
+          const bookmarked = isItemBookmarked(res.id);
+          return `
+            <div class="resource-item-card">
+              <div class="resource-card-top">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span class="resource-type-badge">${res.type}</span>
+                  <span style="font-size:var(--text-xs); color:var(--text-dim);">${res.size}</span>
+                </div>
+                <h3 class="resource-card-title">${res.title}</h3>
+                <p class="resource-card-desc">${res.description}</p>
+                <div style="font-size:var(--text-xs); color:var(--text-dim); margin-top:0.45rem;">
+                  Subject: <strong>${res.subjectTitle}</strong>
+                </div>
+              </div>
+
+              <div class="resource-card-footer">
+                <div style="display:flex; gap:0.45rem;">
+                  <button class="btn-header-action" style="padding:0.25rem 0.6rem; font-size:var(--text-xs);" data-open-resource-id="${res.id}">
+                    <i data-lucide="eye" style="width:13px; height:13px;"></i>
+                    <span>Open</span>
+                  </button>
+                  <button class="btn-header-action" style="padding:0.25rem 0.6rem; font-size:var(--text-xs);" data-print-resource-id="${res.id}" title="Print Document">
+                    <i data-lucide="printer" style="width:13px; height:13px;"></i>
+                  </button>
+                </div>
+                <button class="btn-icon-square ${bookmarked ? 'active' : ''}" style="width:28px; height:28px;" data-bookmark-resource-id="${res.id}" title="Bookmark Resource">
+                  <i data-lucide="bookmark" style="width:14px; height:14px;"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `}
+  `;
+}
+
+// ============================================================================
+// VIEW 3: Study Planner (Tasks & Deadlines)
+// ============================================================================
+
+function renderPlannerView() {
+  const pending = state.studyTasks.filter(t => !t.completed);
+  const completed = state.studyTasks.filter(t => t.completed);
+
+  return `
+    <div style="margin-bottom:1.5rem;">
+      <h1 class="welcome-heading">Study Planner & Task Management</h1>
+      <p class="welcome-sub">
+        Organize dissertation milestones, exam preparations, lab submissions, and daily study objectives.
+      </p>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="planner-header-row">
+      <div style="font-size:var(--text-sm); color:var(--text-muted);">
+        <strong>${pending.length}</strong> tasks remaining • <strong>${completed.length}</strong> completed
+      </div>
+      <button class="btn-primary-action" id="openNewTaskModalBtn">
+        <i data-lucide="plus" style="width:14px; height:14px;"></i>
+        <span>Create Study Task</span>
+      </button>
+    </div>
+
+    <!-- Active Tasks List -->
+    <div style="margin-bottom:2rem;">
+      <h3 style="font-size:var(--text-sm); font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.75rem;">
+        Active Tasks (${pending.length})
+      </h3>
+
+      ${pending.length === 0 ? `
+        <div class="empty-state-card" style="padding:1.5rem; max-width:100%; margin:0;">
+          <p style="font-size:var(--text-sm); color:var(--text-muted);">No active tasks. Add a milestone to stay focused!</p>
+        </div>
+      ` : `
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          ${pending.map(task => `
+            <div class="planner-task-card">
+              <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                <input type="checkbox" style="margin-top:4px; accent-color:var(--accent); cursor:pointer;" data-toggle-task-id="${task.id}" />
+                <div>
+                  <h4 style="font-size:var(--text-md); font-weight:600; color:var(--text-main); margin-bottom:0.25rem;">
+                    ${task.title}
+                  </h4>
+                  ${task.description ? `<p style="font-size:var(--text-xs); color:var(--text-muted); margin-bottom:0.45rem;">${task.description}</p>` : ''}
+                  <div style="display:flex; align-items:center; gap:0.65rem; font-size:var(--text-xs); color:var(--text-dim);">
+                    <span class="priority-tag priority-${task.priority}">${task.priority}</span>
+                    <span>•</span>
+                    <span>Course: <strong>${task.courseCode}</strong></span>
+                    <span>•</span>
+                    <span>Due: <strong>${task.dueDate || 'No deadline'}</strong></span>
+                  </div>
+                </div>
+              </div>
+              <button class="btn-icon-square" style="color:var(--text-dim);" data-delete-task-id="${task.id}" title="Delete Task">
+                <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `}
+    </div>
+
+    <!-- Completed Tasks List -->
+    ${completed.length > 0 ? `
+      <div>
+        <h3 style="font-size:var(--text-sm); font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:0.75rem;">
+          Completed Tasks (${completed.length})
+        </h3>
+        <div style="display:flex; flex-direction:column; gap:0.45rem;">
+          ${completed.map(task => `
+            <div class="planner-task-card" style="opacity:0.65;">
+              <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+                <input type="checkbox" checked style="margin-top:4px; accent-color:var(--accent); cursor:pointer;" data-toggle-task-id="${task.id}" />
+                <div>
+                  <div style="font-size:var(--text-sm); font-weight:500; text-decoration:line-through; color:var(--text-muted);">
+                    ${task.title}
+                  </div>
+                  <div style="font-size:var(--text-xs); color:var(--text-dim); margin-top:0.2rem;">
+                    Completed • ${task.courseCode}
+                  </div>
+                </div>
+              </div>
+              <button class="btn-icon-square" style="color:var(--text-dim);" data-delete-task-id="${task.id}" title="Delete Task">
+                <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+// ============================================================================
+// VIEW 4: Research Workspace (Papers, BibTeX, Notes)
+// ============================================================================
+
+function renderResearchWorkspaceView() {
+  return `
+    <div style="margin-bottom:1.5rem;">
+      <h1 class="welcome-heading">Research Literature Workspace</h1>
+      <p class="welcome-sub">
+        Explore seminal postgraduate papers mapped directly to your M.Tech syllabus. Manage reading queues, cite in BibTeX, and keep personal literature review notes.
+      </p>
+    </div>
+
+    <!-- Research Paper Cards List -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+      ${RESEARCH_PAPERS.map(paper => {
+        const currentStatus = state.paperStatus[paper.id] || "to-read";
+        const personalNote = state.paperNotes[paper.id] || "";
+        const bookmarked = isItemBookmarked(paper.id);
+
+        return `
+          <div class="research-paper-card" id="${paper.id}">
+            <div class="paper-card-header">
+              <span class="badge-tag">${paper.subjectName}</span>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <!-- Reading Status Select -->
+                <select class="status-select" data-paper-status-id="${paper.id}">
+                  <option value="to-read" ${currentStatus === 'to-read' ? 'selected' : ''}>To Read</option>
+                  <option value="reading" ${currentStatus === 'reading' ? 'selected' : ''}>Reading</option>
+                  <option value="read" ${currentStatus === 'read' ? 'selected' : ''}>Read</option>
+                </select>
+                <button class="btn-icon-square ${bookmarked ? 'active' : ''}" style="width:28px; height:28px;" data-bookmark-paper-id="${paper.id}" title="Bookmark Paper">
+                  <i data-lucide="bookmark" style="width:14px; height:14px;"></i>
+                </button>
+              </div>
+            </div>
+
+            <h3 class="paper-title">${paper.title}</h3>
+            <div class="paper-authors">${paper.authors} (${paper.year})</div>
+            <div class="paper-venue-meta">Venue: ${paper.venue} • DOI: ${paper.doi}</div>
+
+            <div class="paper-abstract-box">
+              <strong>Abstract:</strong> ${paper.abstract}
+            </div>
+
+            <!-- Tags -->
+            <div style="display:flex; gap:0.4rem; margin-bottom:1rem; flex-wrap:wrap;">
+              ${paper.tags.map(tag => `<span class="tag-quiet">${tag}</span>`).join('')}
+            </div>
+
+            <!-- Action Bar -->
+            <div class="paper-actions-bar">
+              <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <a href="${paper.url}" target="_blank" rel="noopener noreferrer" class="btn-header-action" style="text-decoration:none;">
+                  <i data-lucide="external-link" style="width:13px; height:13px;"></i>
+                  <span>Open Original Paper PDF</span>
+                </a>
+                <button class="btn-header-action" data-copy-bibtex="${paper.id}" title="Copy BibTeX Citation">
+                  <i data-lucide="copy" style="width:13px; height:13px;"></i>
+                  <span>Copy BibTeX</span>
+                </button>
+                <button class="btn-header-action" data-paper-notes-toggle="${paper.id}">
+                  <i data-lucide="edit-3" style="width:13px; height:13px;"></i>
+                  <span>${personalNote ? 'Edit Notes' : 'Add Reading Note'}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Collapsible Personal Paper Note -->
+            <div class="paper-note-container" id="noteBox_${paper.id}" style="${personalNote ? 'display:block;' : 'display:none;'} margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-subtle);">
+              <label style="font-size:var(--text-xs); font-weight:600; color:var(--text-dim); text-transform:uppercase; display:block; margin-bottom:0.35rem;">
+                Personal Research Notes:
+              </label>
+              <textarea 
+                class="input-quiet" 
+                style="width:100%; height:75px; resize:vertical;" 
+                id="paperNoteInput_${paper.id}"
+                placeholder="Key takeaways, methodology points, or dissertation ideas from this paper..."
+              >${personalNote}</textarea>
+              <button class="btn-header-action" style="margin-top:0.45rem; padding:0.25rem 0.65rem;" data-save-paper-note="${paper.id}">
+                Save Note
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ============================================================================
+// VIEW 5: Bookmarks Management
+// ============================================================================
+
+function renderBookmarksView() {
+  return `
+    <div style="margin-bottom:1.5rem;">
+      <h1 class="welcome-heading">Saved Academic Bookmarks</h1>
+      <p class="welcome-sub">
+        Quick access to high-yield algorithm notes, research papers, and lab manuals saved across your study sessions.
+      </p>
+    </div>
+
+    ${state.bookmarks.length === 0 ? `
+      <div class="empty-state-card">
+        <h3 class="empty-state-title">No Bookmarks Saved Yet</h3>
         <p class="empty-state-desc">
-          Lecture notes are mapped directly to lecture-based PCC subjects. You can generate custom notes using the AI Tutor.
+          Click the bookmark icon on any research paper, lab assignment, or syllabus resource to pin it here for rapid revision.
         </p>
-        <div class="empty-state-actions">
-          <button class="btn-primary-action" id="emptyStateAskAi">
-            <i data-lucide="sparkles" style="width:14px; height:14px;"></i>
-            <span>Generate Notes with AI</span>
+        <button class="btn-primary-action" id="exploreResourcesBtn">Explore Resource Library</button>
+      </div>
+    ` : `
+      <div style="display:flex; flex-direction:column; gap:0.75rem;">
+        ${state.bookmarks.map(bm => `
+          <div class="planner-task-card" style="align-items:center;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+              <i data-lucide="bookmark" style="width:16px; height:16px; color:var(--accent);"></i>
+              <div>
+                <h4 style="font-size:var(--text-md); font-weight:600; color:var(--text-main); margin-bottom:0.15rem;">
+                  ${bm.title}
+                </h4>
+                <div style="font-size:var(--text-xs); color:var(--text-dim);">
+                  ${bm.type ? `Type: ${bm.type} • ` : ''}${bm.subtitle || ''}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              ${bm.linkCode ? `
+                <button class="btn-header-action" style="font-size:var(--text-xs);" data-jump-bookmark-code="${bm.linkCode}" data-jump-bookmark-tab="${bm.linkTab || 'units'}">
+                  Jump to Section →
+                </button>
+              ` : ''}
+              <button class="btn-icon-square" data-remove-bookmark-id="${bm.id}" title="Remove Bookmark">
+                <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+              </button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  `;
+}
+
+// ============================================================================
+// VIEW 6: Course Workspace (Syllabus, Notes, Lab, Question Bank, Textbooks)
+// ============================================================================
+
+function renderCourseWorkspaceView(course, notesData) {
+  // Track this course view in history
+  trackRecentlyViewed({
+    id: `course_${course.code}`,
+    title: course.title,
+    subtitle: `${course.code} • ${formatCredits(course.credits)}`,
+    code: course.code,
+    tab: state.activeTab
+  });
+
+  const isLab = course.type === 'PCC_LAB' || course.code === '2604PCC526';
+  const teachingText = course.teachingScheme?.lectures ? `${course.teachingScheme.lectures} hrs/wk lecture` : (isLab ? `4 hrs/wk practical` : '');
+
+  return `
+    <!-- Course Header Area -->
+    <div class="course-hero-header">
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; flex-wrap:wrap;">
+        <span class="badge-tag">${course.code}</span>
+        <span class="badge-tag">${course.typeFullName || course.type}</span>
+        <span class="badge-tag">${formatCredits(course.credits)}</span>
+        ${teachingText ? `<span class="badge-tag">${teachingText}</span>` : ''}
+      </div>
+
+      <h1 class="course-headline">${course.title}</h1>
+      <p class="course-desc-paragraph">${course.description || 'Curriculum framework conforming to autonomous NEP-2020 guidelines.'}</p>
+
+      <!-- Action Row -->
+      <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+        ${isLab ? `
+          <button class="btn-primary-action" id="openLabDirectBtn">
+            <i data-lucide="play" style="width:14px; height:14px;"></i>
+            <span>Open Lab Simulators</span>
           </button>
+        ` : `
+          <button class="btn-primary-action" id="jumpUnitOneBtn">
+            <i data-lucide="book-open" style="width:14px; height:14px;"></i>
+            <span>Continue Unit 1</span>
+          </button>
+        `}
+        <button class="btn-header-action" id="askCourseAiBtn">
+          <i data-lucide="sparkles" style="width:14px; height:14px; color:var(--accent);"></i>
+          <span>Ask AI Tutor</span>
+        </button>
+        <button class="btn-header-action" id="printSyllabusBtn">
+          <i data-lucide="printer" style="width:14px; height:14px;"></i>
+          <span>Print Notes</span>
+        </button>
+      </div>
+
+      <!-- Compact Exam Evaluation Row -->
+      <div class="exam-eval-row">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; font-size:var(--text-xs); color:var(--text-dim); font-weight:600; text-transform:uppercase;">
+          <span>Evaluation Scheme (Autonomous 2026 Pattern)</span>
+          <span style="color:var(--text-main);">Total: 100 Marks</span>
+        </div>
+        <div class="exam-bar-container">
+          <div style="width:20%; background:var(--seg-tae);" title="TAE: 20%"></div>
+          <div style="width:20%; background:var(--seg-cae);" title="CAE: 20%"></div>
+          <div style="width:60%; background:var(--seg-ese);" title="ESE: 60%"></div>
+        </div>
+        <div style="display:flex; gap:1.5rem; font-size:var(--text-xs); color:var(--text-muted); flex-wrap:wrap;">
+          <div><span style="color:var(--text-dim);">TAE (Internal):</span> <strong>${course.examScheme?.tae ?? 20} Marks</strong> (20%)</div>
+          <div><span style="color:var(--text-dim);">CAE (Mid-Sem):</span> <strong>${course.examScheme?.cae ?? 20} Marks</strong> (20%)</div>
+          <div><span style="color:var(--text-dim);">ESE (End-Sem):</span> <strong>${course.examScheme?.ese ?? 60} Marks</strong> (60%)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sticky Underline Tab Bar -->
+    <nav class="sticky-tab-bar" aria-label="Course Section Tabs">
+      <button class="tab-underline-btn ${state.activeTab === 'units' ? 'active' : ''}" data-tab="units">
+        <i data-lucide="book-open" style="width:14px; height:14px;"></i>
+        <span>Syllabus & Units</span>
+      </button>
+
+      <button class="tab-underline-btn ${state.activeTab === 'notes' ? 'active' : ''}" data-tab="notes">
+        <i data-lucide="file-text" style="width:14px; height:14px;"></i>
+        <span>Study Notes</span>
+      </button>
+
+      ${(isLab || course.parts) ? `
+        <button class="tab-underline-btn ${state.activeTab === 'lab' ? 'active' : ''}" data-tab="lab">
+          <i data-lucide="terminal" style="width:14px; height:14px;"></i>
+          <span>Lab Practice Assignments</span>
+        </button>
+      ` : ''}
+
+      <button class="tab-underline-btn ${state.activeTab === 'questions' ? 'active' : ''}" data-tab="questions">
+        <i data-lucide="help-circle" style="width:14px; height:14px;"></i>
+        <span>Question Bank</span>
+      </button>
+
+      <button class="tab-underline-btn ${state.activeTab === 'books' ? 'active' : ''}" data-tab="books">
+        <i data-lucide="library" style="width:14px; height:14px;"></i>
+        <span>Textbooks</span>
+      </button>
+    </nav>
+
+    <!-- Tab Pane Body -->
+    <div>
+      ${renderCourseTabContent(course, notesData)}
+    </div>
+  `;
+}
+
+function renderCourseTabContent(course, notesData) {
+  if (state.activeTab === 'units') {
+    if (!course.units || course.units.length === 0) {
+      return `
+        <div class="empty-state-card">
+          <h3 class="empty-state-title">Practical / Experiential Course</h3>
+          <p class="empty-state-desc">This course focuses on laboratory implementations and project deliverables.</p>
+          <button class="btn-primary-action" id="jumpToLabTabBtn">View Lab Assignments</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:0.85rem;">
+        ${course.units.map((unit, uIdx) => {
+          const unitId = `${course.code}_unit_${uIdx}`;
+          const isMastered = state.completedUnits.includes(unitId);
+
+          return `
+            <div class="unit-accordion-item ${uIdx === 0 ? 'open' : ''}" id="unitCard_${uIdx}">
+              <div class="unit-accordion-header" data-toggle-unit-idx="${uIdx}">
+                <div style="display:flex; align-items:baseline; gap:0.65rem;">
+                  <span class="badge-tag">${unit.unitNo}</span>
+                  <span style="font-size:var(--text-md); font-weight:600; color:var(--text-main);">${unit.title}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.65rem;">
+                  <span style="font-size:var(--text-xs); color:var(--text-dim);">${unit.hours} hrs</span>
+                  <label style="display:flex; align-items:center; gap:0.35rem; font-size:var(--text-xs); color:var(--text-muted); cursor:pointer;" onclick="event.stopPropagation();">
+                    <input type="checkbox" style="accent-color:var(--accent); cursor:pointer;" class="unit-mastery-chk" data-u-id="${unitId}" ${isMastered ? 'checked' : ''} />
+                    <span>${isMastered ? 'Mastered' : 'Mark Done'}</span>
+                  </label>
+                  <i data-lucide="chevron-down" style="width:14px; height:14px; color:var(--text-muted);"></i>
+                </div>
+              </div>
+
+              <div class="unit-accordion-body">
+                <div style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.65rem;">
+                  Topic Checklist (Click to track progress)
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:0.35rem; margin-bottom:1rem;">
+                  ${unit.topics.map((t, tIdx) => {
+                    const topKey = `${unitId}_topic_${tIdx}`;
+                    const checked = state.checkedTopics.includes(topKey);
+                    return `
+                      <div class="task-row-item ${checked ? 'done' : ''}" style="margin-bottom:0; cursor:pointer;" data-topic-check-key="${topKey}">
+                        <input type="checkbox" ${checked ? 'checked' : ''} style="accent-color:var(--accent); pointer-events:none; margin-top:3px;" />
+                        <span style="font-size:var(--text-sm); line-height:1.45;">${t}</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:0.5rem; padding-top:0.75rem; border-top:1px solid var(--border-subtle);">
+                  <button class="btn-header-action" data-jump-to-notes-tab="notes">
+                    <i data-lucide="file-text" style="width:13px; height:13px;"></i>
+                    <span>Read Notes & Derivations</span>
+                  </button>
+                  <button class="btn-header-action" data-unit-ask-ai="${unit.title}">
+                    <i data-lucide="sparkles" style="width:13px; height:13px; color:var(--accent);"></i>
+                    <span>Explain Unit with AI</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  if (state.activeTab === 'notes') {
+    if (!notesData?.units || notesData.units.length === 0) {
+      return `
+        <div class="empty-state-card">
+          <h3 class="empty-state-title">No Notes Database for this Module</h3>
+          <p class="empty-state-desc">Generate custom notes and derivations for this subject using the AI Assistant.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:1.75rem;">
+        ${notesData.units.map(unit => `
+          <div id="unitNotes_${unit.unitNo.replace(/\s+/g, '')}">
+            <h3 style="font-size:var(--text-lg); font-weight:700; color:var(--text-main); margin-bottom:0.85rem; border-bottom:1px solid var(--border-subtle); padding-bottom:0.35rem;">
+              ${unit.unitNo}: ${unit.title}
+            </h3>
+
+            <div style="display:flex; flex-direction:column; gap:1rem;">
+              ${(unit.keyConcepts || []).map(c => `
+                <div class="stat-tile-card" style="padding:1.25rem;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.45rem;">
+                    <h4 style="font-size:var(--text-md); font-weight:600; color:var(--text-main);">${c.heading}</h4>
+                    <button class="btn-icon-square" data-ai-concept-ask="${c.heading}" title="Deep-dive with AI">
+                      <i data-lucide="sparkles" style="width:13px; height:13px; color:var(--accent);"></i>
+                    </button>
+                  </div>
+                  <div style="font-size:var(--text-sm); color:var(--text-muted); line-height:1.65;">
+                    ${marked.parse(c.content)}
+                  </div>
+                  ${c.formula ? `
+                    <div style="background:var(--bg-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:0.55rem 0.85rem; font-family:var(--font-mono); font-size:var(--text-xs); color:var(--text-main); margin-top:0.75rem; display:flex; align-items:center; justify-content:space-between;">
+                      <span>📐 Formula / Recurrence: <code>${c.formula}</code></span>
+                      <button class="btn-header-action" style="padding:0.2rem 0.5rem; font-size:0.68rem;" data-copy-math-text="${escapeHtml(c.formula)}">
+                        Copy
+                      </button>
+                    </div>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  if (state.activeTab === 'lab') {
+    return `
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <button class="btn-header-action active" data-filter-lab-part="ALL">All Assignments</button>
+          <button class="btn-header-action" data-filter-lab-part="Part A">Part A: Algorithms</button>
+          <button class="btn-header-action" data-filter-lab-part="Part B">Part B: Databases</button>
+          <button class="btn-header-action" data-filter-lab-part="Part C">Part C: Machine Learning</button>
+          <button class="btn-header-action" data-filter-lab-part="Part D">Part D: Distributed Systems</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:1.5rem;">
+          ${LAB_ASSIGNMENTS.map(assign => `
+            <div class="lab-split-card" data-lab-card-part="${assign.part}">
+              <div class="lab-split-header">
+                <div>
+                  <h3 style="font-size:var(--text-md); font-weight:600; color:var(--text-main);">${assign.title}</h3>
+                  <p style="font-size:var(--text-xs); color:var(--text-muted); margin-top:0.2rem;">${assign.problemStatement}</p>
+                </div>
+                <div style="display:flex; gap:0.4rem; align-items:center;">
+                  <span class="badge-tag">${assign.part}</span>
+                  <span class="badge-tag" style="font-family:var(--font-mono);">${assign.timeComplexity}</span>
+                </div>
+              </div>
+
+              <div class="lab-grid-two-pane">
+                <!-- Left Code Column -->
+                <div class="lab-code-column">
+                  <div style="padding:0.45rem 0.85rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; font-size:var(--text-xs); font-family:var(--font-mono); color:var(--text-dim);">
+                    <span>Implementation Code</span>
+                    <button class="btn-header-action" style="padding:0.15rem 0.5rem; font-size:0.68rem;" data-copy-lab-code-id="${assign.id}">
+                      <i data-lucide="copy" style="width:11px; height:11px;"></i>
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                  <pre style="padding:1rem; overflow-x:auto; font-family:var(--font-mono); font-size:0.75rem; color:var(--text-main); line-height:1.55; max-height:420px;" id="code_${assign.id}"><code>${escapeHtml(assign.pythonCode)}</code></pre>
+                </div>
+
+                <!-- Right Simulator Column -->
+                <div class="lab-simulator-column">
+                  <span style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-dim); letter-spacing:0.04em;">
+                    Live Interactive Simulation
+                  </span>
+                  ${renderInteractiveSimControls(assign)}
+                </div>
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
   }
 
-  return `
-    <div style="display:flex; flex-direction:column; gap:1.75rem;">
-      ${notesData.units.map(unit => `
-        <section id="notesSection_${unit.unitNo.replace(/\s+/g, '')}">
-          <h3 style="font-family:var(--font-serif); font-size:var(--text-xl); font-weight:500; color:var(--text-main); margin-bottom:1rem; border-bottom:1px solid var(--border-subtle); padding-bottom:0.4rem;">
-            ${unit.unitNo}: ${unit.title}
-          </h3>
-
-          <div style="display:flex; flex-direction:column; gap:1rem;">
-            ${(unit.keyConcepts || []).map(c => `
-              <article class="concept-note-entry">
-                <h4>
-                  <span>${c.heading}</span>
-                  <button class="btn-quiet-icon" data-ai-concept="${c.heading}" title="Deep-dive with AI">
-                    <i data-lucide="message-square" style="width:14px; height:14px;"></i>
+  if (state.activeTab === 'questions') {
+    const qUnits = notesData?.units?.filter(u => u.examQuestions?.length) || [];
+    return `
+      <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        ${qUnits.map(unit => `
+          <div class="stat-tile-card" style="padding:1.25rem;">
+            <h4 style="font-size:var(--text-sm); font-weight:700; color:var(--text-main); margin-bottom:0.75rem;">
+              ${unit.unitNo}: ${unit.title}
+            </h4>
+            <div style="display:flex; flex-direction:column; gap:0.65rem;">
+              ${unit.examQuestions.map(eq => `
+                <div style="display:flex; align-items:baseline; gap:0.65rem; font-size:var(--text-sm);">
+                  <span class="badge-tag" style="font-family:var(--font-mono); font-weight:600;">${eq.marks}M</span>
+                  <span style="flex:1; color:var(--text-main);">${eq.q}</span>
+                  <button class="btn-icon-square" style="width:26px; height:26px;" data-ai-answer-q="${escapeHtml(eq.q)}" title="Get model answer with AI">
+                    <i data-lucide="sparkles" style="width:12px; height:12px; color:var(--accent);"></i>
                   </button>
-                </h4>
-                <div class="concept-prose">${marked.parse(c.content)}</div>
-                ${c.formula ? `
-                  <div class="concept-formula-box">
-                    <span>Recurrence / Formula:</span>
-                    <code>${c.formula}</code>
-                    <button class="btn-quiet-icon" style="width:24px; height:24px;" data-copy-math="${escapeHtml(c.formula)}" title="Copy Formula">
-                      <i data-lucide="copy" style="width:12px; height:12px;"></i>
-                    </button>
-                  </div>
-                ` : ''}
-              </article>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  if (state.activeTab === 'books') {
+    const books = course.textBooks || [];
+    const refBooks = course.referenceBooks || [];
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:1.75rem;">
+        <div>
+          <h3 style="font-size:var(--text-lg); font-weight:700; color:var(--text-main); margin-bottom:0.85rem;">
+            Prescribed Textbooks
+          </h3>
+          <div style="display:flex; flex-direction:column; gap:0.65rem;">
+            ${books.map((b, i) => `
+              <div class="stat-tile-card" style="padding:0.95rem 1.15rem;">
+                <div style="font-size:var(--text-xs); color:var(--text-dim);">Textbook ${i + 1}</div>
+                <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-main); margin-top:0.2rem;">${b}</div>
+              </div>
             `).join('')}
           </div>
-        </section>
-      `).join('')}
-    </div>
-  `;
-}
-
-// 3. Lab Practice Pane (Clean Two-Pane Design)
-function renderLabPane(course) {
-  return `
-    <div style="display:flex; flex-direction:column; gap:1.5rem;">
-      <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:1.25rem 1.4rem;">
-        <h3 style="font-size:var(--text-md); font-weight:600; color:var(--text-main); margin-bottom:0.35rem;">
-          Lab Practice - I (Course Code: 2604PCC526)
-        </h3>
-        <p style="font-size:var(--text-sm); color:var(--text-muted); line-height:1.55;">
-          Executable reference implementations in Python and SQL with live interactive simulators for Algorithms, Database Systems, Machine Learning, and Distributed Systems.
-        </p>
-      </div>
-
-      <!-- Parts Navigation Filter -->
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button class="btn-secondary-action active" data-lab-part="ALL">All Assignments</button>
-        <button class="btn-secondary-action" data-lab-part="Part A">Part A: Algorithms</button>
-        <button class="btn-secondary-action" data-lab-part="Part B">Part B: Database Systems</button>
-        <button class="btn-secondary-action" data-lab-part="Part C">Part C: Machine Learning</button>
-        <button class="btn-secondary-action" data-lab-part="Part D">Part D: Distributed Systems</button>
-      </div>
-
-      <div class="lab-assignment-container">
-        ${LAB_ASSIGNMENTS.map(assign => renderEditorialLabCard(assign)).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function renderEditorialLabCard(assign) {
-  return `
-    <article class="lab-card-editorial" data-part="${assign.part}">
-      <header class="lab-card-editorial-header">
-        <div>
-          <h3>${assign.title}</h3>
-          <p style="font-size:var(--text-xs); color:var(--text-muted); margin-top:0.25rem;">${assign.problemStatement}</p>
         </div>
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
-          <span class="tag-quiet">${assign.part}</span>
-          <span class="tag-quiet" style="font-family:var(--font-mono);">${assign.timeComplexity}</span>
-        </div>
-      </header>
 
-      <div class="lab-two-pane-grid">
-        <!-- Left: Code Pane -->
-        <div class="code-pane-editorial">
-          <div class="code-pane-bar">
-            <span>Solution Implementation</span>
-            <button class="btn-secondary-action" style="padding:0.2rem 0.5rem; font-size:var(--text-xs);" data-lab-copy="${assign.id}">
-              <i data-lucide="copy" style="width:12px; height:12px;"></i>
-              <span>Copy Code</span>
-            </button>
+        ${refBooks.length > 0 ? `
+          <div>
+            <h3 style="font-size:var(--text-lg); font-weight:700; color:var(--text-main); margin-bottom:0.85rem;">
+              Reference Literature
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:0.65rem;">
+              ${refBooks.map((b, i) => `
+                <div class="stat-tile-card" style="padding:0.95rem 1.15rem;">
+                  <div style="font-size:var(--text-xs); color:var(--text-dim);">Reference ${i + 1}</div>
+                  <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-main); margin-top:0.2rem;">${b}</div>
+                </div>
+              `).join('')}
+            </div>
           </div>
-          <pre class="code-pre-editorial" id="code_${assign.id}"><code>${escapeHtml(assign.pythonCode)}</code></pre>
-        </div>
-
-        <!-- Right: Simulator Pane -->
-        <div class="simulator-pane-editorial">
-          <div style="font-size:var(--text-xs); font-weight:600; text-transform:uppercase; color:var(--text-dim); letter-spacing:0.04em;">
-            Live Execution Simulator
-          </div>
-          ${renderEditorialSimulator(assign)}
-        </div>
+        ` : ''}
       </div>
-    </article>
-  `;
+    `;
+  }
+
+  return '';
 }
 
-function renderEditorialSimulator(assign) {
+function renderInteractiveSimControls(assign) {
   if (assign.interactiveType === 'knapsack') {
     return `
       <div class="form-field-quiet">
-        <label>Item Values (comma-separated):</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Item Values (comma-separated):</label>
         <input class="input-quiet" id="knapValues" value="60, 100, 120" />
       </div>
       <div class="form-field-quiet">
-        <label>Item Weights (comma-separated):</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Item Weights (comma-separated):</label>
         <input class="input-quiet" id="knapWeights" value="10, 20, 30" />
       </div>
       <div class="form-field-quiet">
-        <label>Capacity (W):</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Knapsack Capacity (W):</label>
         <input class="input-quiet" id="knapCapacity" type="number" value="50" />
       </div>
-      <button class="btn-primary-action" id="runKnapsackSim" style="justify-content:center;">
-        <i data-lucide="play" style="width:13px; height:13px;"></i>
-        <span>Compute Optimal Subset</span>
+      <button class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent); justify-content:center;" id="runKnapsackSim">
+        Compute Optimal Profit
       </button>
-      <div class="output-box-quiet" id="knapOutput">Click 'Compute' to calculate DP matrix and max profit.</div>
+      <div class="output-box-quiet" id="knapOutput">Click 'Compute' to calculate bottom-up DP table.</div>
     `;
   }
 
   if (assign.interactiveType === 'platforms') {
     return `
       <div class="form-field-quiet">
-        <label>Train Arrivals (24hr):</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Arrivals (24hr):</label>
         <input class="input-quiet" id="platArrivals" value="09:00, 09:40, 09:50, 11:00, 15:00, 18:00" />
       </div>
       <div class="form-field-quiet">
-        <label>Train Departures:</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Departures:</label>
         <input class="input-quiet" id="platDepartures" value="09:10, 12:00, 11:20, 11:30, 19:00, 20:00" />
       </div>
-      <button class="btn-primary-action" id="runPlatformsSim" style="justify-content:center;">
-        <i data-lucide="play" style="width:13px; height:13px;"></i>
-        <span>Calculate Minimum Platforms</span>
+      <button class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent); justify-content:center;" id="runPlatformsSim">
+        Calculate Minimum Platforms
       </button>
-      <div class="output-box-quiet" id="platOutput">Click 'Calculate' to simulate platform timeline.</div>
+      <div class="output-box-quiet" id="platOutput">Click 'Calculate' to simulate station platforms.</div>
     `;
   }
 
   if (assign.interactiveType === 'two_generals') {
     return `
       <div class="form-field-quiet">
-        <label>Transient Packet Loss Probability (0.0 to 0.9):</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Packet Loss Rate (0.0 to 0.9):</label>
         <input class="input-quiet" id="lossProb" type="number" step="0.1" min="0" max="0.9" value="0.4" />
       </div>
-      <button class="btn-primary-action" id="runTwoGeneralsSim" style="justify-content:center;">
-        <i data-lucide="play" style="width:13px; height:13px;"></i>
-        <span>Simulate Coordination Protocol</span>
+      <button class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent); justify-content:center;" id="runTwoGeneralsSim">
+        Simulate Coordination Protocol
       </button>
-      <div class="output-box-quiet" id="twoGeneralsOutput">Click 'Simulate' to test message acknowledgment.</div>
+      <div class="output-box-quiet" id="twoGeneralsOutput">Click 'Simulate' to test atomic coordination.</div>
     `;
   }
 
   if (assign.interactiveType === 'bully_election') {
     return `
       <div class="form-field-quiet">
-        <label>Failed Coordinator Node:</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Failed Coordinator:</label>
         <select class="input-quiet" id="bullyFailedNode">
           <option value="5" selected>Node P5 (Highest UID)</option>
           <option value="4">Node P4</option>
         </select>
       </div>
       <div class="form-field-quiet">
-        <label>Initiator Node:</label>
+        <label style="font-size:var(--text-xs); color:var(--text-muted);">Initiating Node:</label>
         <select class="input-quiet" id="bullyInitiator">
           <option value="2" selected>Node P2 detects crash</option>
           <option value="1">Node P1 detects crash</option>
         </select>
       </div>
-      <button class="btn-primary-action" id="runBullyElectionSim" style="justify-content:center;">
-        <i data-lucide="play" style="width:13px; height:13px;"></i>
-        <span>Run Bully Election Algorithm</span>
+      <button class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent); justify-content:center;" id="runBullyElectionSim">
+        Run Bully Election
       </button>
       <div class="output-box-quiet" id="bullyOutput">Click 'Run' to trigger election broadcast.</div>
     `;
@@ -663,110 +1212,27 @@ function renderEditorialSimulator(assign) {
     <p style="font-size:var(--text-xs); color:var(--text-muted); line-height:1.5;">
       Test case inputs and oral examination preparation points available with AI Tutor.
     </p>
-    <button class="btn-secondary-action" data-unit-ai-explain="${assign.title}">
-      <i data-lucide="message-square" style="width:13px; height:13px;"></i>
-      <span>Explain Code with AI</span>
+    <button class="btn-header-action" data-unit-ask-ai="${assign.title}">
+      <i data-lucide="sparkles" style="width:13px; height:13px; color:var(--accent);"></i>
+      <span>Explain with AI</span>
     </button>
-    <div class="output-box-quiet">Implementation ready for oral / term-work presentation.</div>
-  `;
-}
-
-// 4. Questions Pane
-function renderQuestionsPane(course, notesData) {
-  const unitsWithQuestions = notesData?.units?.filter(u => u.examQuestions?.length) || [];
-
-  return `
-    <div style="display:flex; flex-direction:column; gap:1.25rem;">
-      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-        <button class="btn-secondary-action ${state.questionMarksFilter === 'ALL' ? 'active' : ''}" data-filter-q="ALL">All Questions</button>
-        <button class="btn-secondary-action ${state.questionMarksFilter === 2 ? 'active' : ''}" data-filter-q="2">2 Marks (Short)</button>
-        <button class="btn-secondary-action ${state.questionMarksFilter === 5 ? 'active' : ''}" data-filter-q="5">5 Marks (Medium)</button>
-        <button class="btn-secondary-action ${state.questionMarksFilter === 10 ? 'active' : ''}" data-filter-q="10">10 Marks (Long)</button>
-      </div>
-
-      ${unitsWithQuestions.map(unit => {
-        const filtered = unit.examQuestions.filter(q => 
-          state.questionMarksFilter === 'ALL' || q.marks === parseInt(state.questionMarksFilter, 10)
-        );
-        if (filtered.length === 0) return '';
-
-        return `
-          <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:1.25rem;">
-            <h4 style="font-size:var(--text-sm); font-weight:600; color:var(--text-main); margin-bottom:0.75rem;">
-              ${unit.unitNo}: ${unit.title}
-            </h4>
-            <div style="display:flex; flex-direction:column; gap:0.65rem;">
-              ${filtered.map(eq => `
-                <div style="display:flex; align-items:baseline; gap:0.65rem; font-size:var(--text-sm);">
-                  <span class="tag-quiet" style="font-weight:600; font-family:var(--font-mono);">${eq.marks}M</span>
-                  <span style="flex:1; color:var(--text-main);">${eq.q}</span>
-                  <button class="btn-quiet-icon" style="width:26px; height:26px;" data-ai-model-answer="${escapeHtml(eq.q)}" title="Get model answer">
-                    <i data-lucide="message-square" style="width:13px; height:13px;"></i>
-                  </button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
-// 5. Books Pane
-function renderBooksPane(course) {
-  const books = course.textBooks || [];
-  const refBooks = course.referenceBooks || [];
-
-  return `
-    <div style="display:flex; flex-direction:column; gap:1.75rem;">
-      <div>
-        <h3 style="font-family:var(--font-serif); font-size:var(--text-xl); font-weight:500; color:var(--text-main); margin-bottom:0.85rem;">
-          Prescribed Textbooks
-        </h3>
-        <div style="display:flex; flex-direction:column; gap:0.65rem;">
-          ${books.map((b, i) => `
-            <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.85rem 1.15rem;">
-              <div style="font-size:var(--text-xs); color:var(--text-dim); margin-bottom:0.15rem;">Textbook ${i + 1}</div>
-              <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-main);">${b}</div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-
-      ${refBooks.length > 0 ? `
-        <div>
-          <h3 style="font-family:var(--font-serif); font-size:var(--text-xl); font-weight:500; color:var(--text-main); margin-bottom:0.85rem;">
-            Reference Literature
-          </h3>
-          <div style="display:flex; flex-direction:column; gap:0.65rem;">
-            ${refBooks.map((b, i) => `
-              <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:0.85rem 1.15rem;">
-                <div style="font-size:var(--text-xs); color:var(--text-dim); margin-bottom:0.15rem;">Reference ${i + 1}</div>
-                <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-main);">${b}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-    </div>
+    <div class="output-box-quiet">Implementation verified for laboratory submission.</div>
   `;
 }
 
 // ============================================================================
-// Render Right Panel (TOC & Scratchpad)
+// Right Sidebar: Course Outcomes & Personal Scratchpad
 // ============================================================================
 
 function renderRightPanel(course) {
   const currentNote = state.studentNotes[course.code] || "";
 
   return `
-    <aside class="sidebar-right" id="sidebarRight">
-      <!-- Course Outcomes Box -->
+    <aside class="sidebar-right">
       ${course.courseOutcomes?.length ? `
         <div>
-          <div class="toc-heading">Course Outcomes</div>
-          <div style="display:flex; flex-direction:column; gap:0.35rem;">
+          <div class="nav-section-title">Course Outcomes (COs)</div>
+          <div style="display:flex; flex-direction:column; gap:0.4rem;">
             ${course.courseOutcomes.map(co => `
               <div style="background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-xs); padding:0.45rem 0.6rem; font-size:var(--text-xs);">
                 <strong style="color:var(--accent);">${co.id}:</strong> ${co.text}
@@ -776,32 +1242,20 @@ function renderRightPanel(course) {
         </div>
       ` : ''}
 
-      <!-- Table of Contents -->
-      ${course.units?.length ? `
-        <div>
-          <div class="toc-heading">On This Page</div>
-          <nav>
-            <a href="#courseHeaderSection" class="toc-link">Overview & Exam Scheme</a>
-            ${course.units.map((u, i) => `
-              <a href="#unitCard_${i}" class="toc-link">${u.unitNo}: ${u.title}</a>
-            `).join('')}
-          </nav>
-        </div>
-      ` : ''}
-
-      <!-- Student Personal Scratchpad -->
-      <div class="scratchpad-editorial">
+      <!-- Course Personal Scratchpad -->
+      <div style="display:flex; flex-direction:column; gap:0.35rem; margin-top:0.5rem;">
         <div style="display:flex; align-items:baseline; justify-content:space-between;">
-          <span class="toc-heading" style="margin-bottom:0;">Course Scratchpad</span>
-          <span style="font-size:0.65rem; color:var(--status-success);" id="scratchpadStatusLabel">Saved</span>
+          <span class="nav-section-title" style="margin-bottom:0;">Personal Scratchpad</span>
+          <span style="font-size:0.65rem; color:var(--status-success);" id="scratchpadSaveStatus">Saved</span>
         </div>
         <textarea 
-          class="scratchpad-area" 
-          id="studentScratchpad" 
-          placeholder="Jot down notes, exam dates, or personal derivations for ${course.code}..."
+          class="input-quiet" 
+          id="courseScratchpadArea" 
+          style="width:100%; height:160px; font-size:var(--text-xs); line-height:1.45; resize:vertical;" 
+          placeholder="Jot formulas, exam notes, or viva points for ${course.code}..."
         >${currentNote}</textarea>
-        <button class="btn-secondary-action" id="saveScratchpadBtn" style="justify-content:center; font-size:var(--text-xs); padding:0.3rem 0.6rem;">
-          <span>Save Note</span>
+        <button class="btn-header-action" style="justify-content:center; font-size:var(--text-xs); padding:0.3rem 0.6rem;" id="saveCourseNoteBtn">
+          Save Note
         </button>
       </div>
     </aside>
@@ -809,61 +1263,61 @@ function renderRightPanel(course) {
 }
 
 // ============================================================================
-// Render AI Tutor Side Drawer (Quiet Product Feature)
+// AI Tutor Side Drawer
 // ============================================================================
 
-function renderAiDrawer(course) {
+function renderAiSideDrawer(activeCourse) {
   return `
-    <div class="drawer-backdrop" id="aiDrawerBackdrop"></div>
-    <div class="ai-drawer-panel" id="aiDrawerPanel">
-      <div class="drawer-header">
+    <div class="ai-drawer-overlay" id="aiDrawerOverlayBackdrop"></div>
+    <div class="ai-drawer-content" id="aiDrawerContent">
+      <div class="ai-drawer-header">
         <div>
-          <h3>AI Syllabus Tutor</h3>
-          <p style="font-size:var(--text-xs); color:var(--text-dim);">${state.geminiApiKey ? 'Live Gemini 1.5' : 'Neural Syllabus Reference'}</p>
+          <h3 style="font-size:var(--text-sm); font-weight:700; color:var(--text-main);">M.Tech AI Academic Assistant</h3>
+          <p style="font-size:0.68rem; color:var(--text-dim);">${state.geminiApiKey ? 'Live Gemini 1.5' : 'Curriculum Grounded Engine'}</p>
         </div>
-        <div style="display:flex; align-items:center; gap:0.25rem;">
-          <button class="btn-quiet-icon" id="openApiKeyModal" title="Gemini API Key Settings">
+        <div style="display:flex; gap:0.35rem;">
+          <button class="btn-icon-square" id="openAiSettingsBtn" title="API Key Settings">
             <i data-lucide="settings" style="width:14px; height:14px;"></i>
           </button>
-          <button class="btn-quiet-icon" id="clearChatBtn" title="Clear Chat">
+          <button class="btn-icon-square" id="clearChatBtn" title="Clear Chat">
             <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
           </button>
-          <button class="btn-quiet-icon" id="closeAiDrawerBtn" title="Close Drawer">
+          <button class="btn-icon-square" id="closeAiDrawerBtn" title="Close Drawer">
             <i data-lucide="x" style="width:15px; height:15px;"></i>
           </button>
         </div>
       </div>
 
-      <!-- Quick Topic Chips -->
+      <!-- Quick Prompt Suggestions -->
       <div style="padding:0.6rem 1rem; border-bottom:1px solid var(--border-subtle); display:flex; gap:0.4rem; overflow-x:auto;">
-        <button class="tag-quiet" data-ai-chip="Explain 0/1 Knapsack recurrence step-by-step">0/1 Knapsack</button>
-        <button class="tag-quiet" data-ai-chip="How does Chandy-Lamport snapshot algorithm work?">Chandy-Lamport</button>
-        <button class="tag-quiet" data-ai-chip="Compare Vector Clocks vs Lamport Scalar Clocks">Vector Clocks</button>
-        <button class="tag-quiet" data-ai-chip="Explain R-Trees for spatial indexing">R-Trees</button>
+        <button class="tag-quiet" data-send-ai-prompt="Explain 0/1 Knapsack dynamic programming recurrence">0/1 Knapsack</button>
+        <button class="tag-quiet" data-send-ai-prompt="How does Chandy-Lamport snapshot algorithm record in-flight channels?">Chandy-Lamport</button>
+        <button class="tag-quiet" data-send-ai-prompt="Compare Vector Clocks vs Lamport Scalar Clocks with update rules">Vector Clocks</button>
+        <button class="tag-quiet" data-send-ai-prompt="Explain R-Tree spatial indexing and bounding rectangles">R-Trees</button>
       </div>
 
-      <!-- Message History -->
-      <div class="drawer-chat-stream" id="drawerChatStream">
+      <!-- Messages Stream -->
+      <div class="ai-chat-history" id="aiChatStream">
         ${state.chatHistory.map(msg => `
-          <div class="drawer-chat-bubble ${msg.sender}">
+          <div class="chat-bubble-row ${msg.sender}">
             ${marked.parse(msg.text)}
-            ${msg.source ? `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:0.35rem;">Ref: ${msg.source}</div>` : ''}
+            ${msg.source ? `<div style="font-size:0.65rem; color:var(--text-dim); margin-top:0.35rem;">Source: ${msg.source}</div>` : ''}
           </div>
         `).join('')}
       </div>
 
-      <!-- Chat Input Row -->
-      <form class="drawer-input-row" id="drawerChatForm">
+      <!-- Input Bar -->
+      <form class="ai-input-bar" id="aiDrawerForm">
         <input 
           type="text" 
           class="input-quiet" 
-          id="drawerChatInput" 
+          id="aiDrawerInput" 
+          placeholder="Ask a technical or syllabus question..." 
           style="flex:1;" 
-          placeholder="Ask about ${course.code}..." 
           autocomplete="off"
         />
-        <button type="submit" class="btn-primary-action" style="padding:0.4rem 0.75rem;">
-          <span>Send</span>
+        <button type="submit" class="btn-header-action" style="background:var(--accent); color:#fff; border-color:var(--accent); padding:0.4rem 0.85rem;">
+          Send
         </button>
       </form>
     </div>
@@ -871,39 +1325,40 @@ function renderAiDrawer(course) {
 }
 
 // ============================================================================
-// Modals & Command Palette
+// Modals & Command Palette Layer
 // ============================================================================
 
-function renderActiveModal() {
+function renderActiveModalLayer() {
   if (!state.activeModal) return '';
 
-  if (state.activeModal === 'search') return renderSearchCommandPalette();
+  if (state.activeModal === 'search') return renderSearchModal();
+  if (state.activeModal === 'taskModal') return renderTaskModal();
   if (state.activeModal === 'quiz') return renderQuizModal();
   if (state.activeModal === 'flashcards') return renderFlashcardsModal();
-  if (state.activeModal === 'calc') return renderMarksCalcModal();
+  if (state.activeModal === 'calc') return renderCalcModal();
   if (state.activeModal === 'settings') return renderSettingsModal();
-  if (state.activeModal === 'studyMenu') return renderStudyMenuModal();
+  if (state.activeModal === 'pdfReader') return renderPdfReaderModal();
   return '';
 }
 
-function renderSearchCommandPalette() {
+function renderSearchModal() {
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet">
-        <div style="padding:0.75rem 1rem; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:0.5rem;">
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card">
+        <div style="padding:0.75rem 1rem; border-bottom:1px solid var(--border-subtle); display:flex; align-items:center; gap:0.65rem;">
           <i data-lucide="search" style="width:16px; height:16px; color:var(--text-dim);"></i>
           <input 
             type="text" 
-            id="cmdPaletteInput" 
-            placeholder="Type a subject, unit, algorithm, or command..." 
-            style="flex:1; border:none; background:transparent; font-size:var(--text-base); color:var(--text-main); outline:none;"
-            autofocus
+            id="cmdPaletteSearchInput" 
+            placeholder="Search subjects, algorithms, research papers, resources..." 
+            style="flex:1; border:none; background:transparent; font-size:var(--text-base); color:var(--text-main); outline:none;" 
+            autofocus 
           />
-          <kbd class="search-kbd">Esc</kbd>
+          <kbd class="kbd-shortcut">Esc</kbd>
         </div>
-        <div style="padding:0.5rem; max-height:360px; overflow-y:auto;" id="cmdResultsList">
+        <div style="padding:0.5rem; max-height:360px; overflow-y:auto;" id="cmdPaletteResults">
           <p style="font-size:var(--text-xs); color:var(--text-dim); padding:1rem; text-align:center;">
-            Search any course code (e.g. 2604PCC501), algorithm (Knapsack, Simplex), or tool.
+            Type any term (e.g. 'Knapsack', 'MapReduce', 'SVM', 'Lamport', 'Delta Lake')...
           </p>
         </div>
       </div>
@@ -911,43 +1366,88 @@ function renderSearchCommandPalette() {
   `;
 }
 
-function renderStudyMenuModal() {
+function renderTaskModal() {
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet" style="max-width:440px;">
-        <div class="modal-header-quiet">
-          <span>Study & Revision Tools</span>
-          <button class="btn-quiet-icon" id="closeModalQuietBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card" style="max-width:480px;">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">New Study Milestone / Task</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
         </div>
-        <div class="modal-body-quiet" style="display:flex; flex-direction:column; gap:0.5rem;">
-          <button class="btn-secondary-action" style="justify-content:flex-start; padding:0.75rem;" id="menuOpenQuiz">
-            <i data-lucide="check-circle-2" style="width:16px; height:16px;"></i>
-            <div style="text-align:left;">
-              <div style="font-weight:600; font-size:var(--text-sm);">Practice Exam Quiz</div>
-              <div style="font-size:var(--text-xs); color:var(--text-dim);">Self-assessment test with detailed explanations</div>
+        <form style="padding:1.25rem; display:flex; flex-direction:column; gap:0.75rem;" id="createTaskForm">
+          <div class="form-field-quiet">
+            <label style="font-size:var(--text-xs); color:var(--text-muted);">Task Title *</label>
+            <input class="input-quiet" id="taskTitleInput" required placeholder="e.g. Master Floyd-Warshall DP recurrence" />
+          </div>
+          <div class="form-field-quiet">
+            <label style="font-size:var(--text-xs); color:var(--text-muted);">Course Tag</label>
+            <select class="input-quiet" id="taskCourseSelect">
+              <option value="GENERAL">General / Seminar</option>
+              <option value="2604PCC501">2604PCC501: Advanced Algorithms</option>
+              <option value="2604PCC502">2604PCC502: Advanced Database Systems</option>
+              <option value="2604PCC503">2604PCC503: Machine Learning</option>
+              <option value="2604PCC504">2604PCC504: Distributed Computing</option>
+              <option value="2604OE505A">2604OE505A: Data Engineering</option>
+              <option value="2604OE505D">2604OE505D: Quantum Computing</option>
+              <option value="2604PCC526">2604PCC526: Lab Practice - I</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="form-field-quiet">
+              <label style="font-size:var(--text-xs); color:var(--text-muted);">Due Date</label>
+              <input type="date" class="input-quiet" id="taskDateInput" />
             </div>
-          </button>
-          <button class="btn-secondary-action" style="justify-content:flex-start; padding:0.75rem;" id="menuOpenFlash">
-            <i data-lucide="layers" style="width:16px; height:16px;"></i>
-            <div style="text-align:left;">
-              <div style="font-weight:600; font-size:var(--text-sm);">Quick Flashcards</div>
-              <div style="font-size:var(--text-xs); color:var(--text-dim);">Flip cards for formulas, theorems, and definitions</div>
+            <div class="form-field-quiet">
+              <label style="font-size:var(--text-xs); color:var(--text-muted);">Priority</label>
+              <select class="input-quiet" id="taskPrioritySelect">
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="normal" selected>Normal</option>
+                <option value="low">Low</option>
+              </select>
             </div>
-          </button>
-          <button class="btn-secondary-action" style="justify-content:flex-start; padding:0.75rem;" id="menuOpenCalc">
-            <i data-lucide="calculator" style="width:16px; height:16px;"></i>
-            <div style="text-align:left;">
-              <div style="font-weight:600; font-size:var(--text-sm);">Target Mark Calculator</div>
-              <div style="font-size:var(--text-xs); color:var(--text-dim);">Estimate required End-Sem (ESE) score from TAE/CAE</div>
-            </div>
-          </button>
-          <button class="btn-secondary-action" style="justify-content:flex-start; padding:0.75rem;" id="menuOpenLab">
-            <i data-lucide="terminal" style="width:16px; height:16px;"></i>
-            <div style="text-align:left;">
-              <div style="font-weight:600; font-size:var(--text-sm);">Lab Practice I Sandbox</div>
-              <div style="font-size:var(--text-xs); color:var(--text-dim);">Interactive simulators for Algorithms, ADBMS, ML & DC</div>
-            </div>
-          </button>
+          </div>
+          <div class="form-field-quiet">
+            <label style="font-size:var(--text-xs); color:var(--text-muted);">Description (optional)</label>
+            <textarea class="input-quiet" id="taskDescInput" style="height:60px; resize:vertical;" placeholder="Key derivation steps, textbook chapter, or assignment file..."></textarea>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.5rem;">
+            <button type="button" class="btn-header-action" id="cancelTaskModalBtn">Cancel</button>
+            <button type="submit" class="btn-primary-action">Add Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function renderPdfReaderModal() {
+  const res = state.modalData?.resource;
+  return `
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card" style="width:780px; max-width:94vw;">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">${res?.title || 'Academic Resource'}</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+        </div>
+        <div style="padding:1.5rem; max-height:75vh; overflow-y:auto;">
+          <div style="background:var(--bg-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:1rem; margin-bottom:1rem;">
+            <div style="font-size:var(--text-xs); color:var(--text-dim);">Resource Type: ${res?.type} • Category: ${res?.category}</div>
+            <div style="font-size:var(--text-sm); color:var(--text-muted); margin-top:0.35rem;">${res?.description}</div>
+          </div>
+          <div style="font-size:var(--text-sm); color:var(--text-main); line-height:1.6;">
+            <p>This resource is officially prescribed for <strong>${res?.subjectTitle}</strong> under the Autonomous NEP-2020 syllabus.</p>
+            <p style="margin-top:0.75rem;">You can print or download the curriculum reference sheet, review the corresponding notes in the workspace, or generate custom model answers using the AI Assistant.</p>
+          </div>
+          <div style="display:flex; gap:0.5rem; justify-content:flex-end; margin-top:1.5rem;">
+            <button class="btn-header-action" onclick="window.print()">
+              <i data-lucide="printer" style="width:13px; height:13px;"></i>
+              <span>Print View</span>
+            </button>
+            <button class="btn-primary-action" id="closeGenericModalActionBtn">
+              <span>Back to Workspace</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -962,30 +1462,30 @@ function renderQuizModal() {
   const isAnswered = userAnswers[currentIdx] !== undefined;
 
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet">
-        <div class="modal-header-quiet">
-          <span>Practice Quiz (${currentIdx + 1} of ${questions.length})</span>
-          <button class="btn-quiet-icon" id="closeModalQuietBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">Practice Exam Quiz (${currentIdx + 1} of ${questions.length})</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
         </div>
-        <div class="modal-body-quiet">
-          <p style="font-size:var(--text-base); font-weight:500; color:var(--text-main); margin-bottom:1rem;">
+        <div style="padding:1.25rem 1.4rem;">
+          <p style="font-size:var(--text-base); font-weight:600; color:var(--text-main); margin-bottom:1rem;">
             ${q.question}
           </p>
 
           <div style="display:flex; flex-direction:column; gap:0.5rem; margin-bottom:1.25rem;">
             ${q.options.map((opt, optIdx) => {
-              let btnStyle = "border-color:var(--border-subtle); background:var(--bg-card);";
+              let btnStyle = "background:var(--bg-subtle); border-color:var(--border-subtle);";
               if (isAnswered) {
                 if (optIdx === q.correctAnswer) {
-                  btnStyle = "border-color:var(--status-success-border); background:var(--status-success-bg); color:var(--status-success); font-weight:600;";
+                  btnStyle = "background:var(--status-success-bg); border-color:var(--status-success); color:var(--status-success); font-weight:600;";
                 } else if (userAnswers[currentIdx] === optIdx) {
-                  btnStyle = "border-color:var(--status-danger); background:var(--status-danger-bg); color:var(--status-danger);";
+                  btnStyle = "background:var(--status-danger-bg); border-color:var(--status-danger); color:var(--status-danger);";
                 }
               }
 
               return `
-                <button class="btn-secondary-action" style="justify-content:flex-start; text-align:left; ${btnStyle}" data-quiz-pick="${optIdx}" ${isAnswered ? 'disabled' : ''}>
+                <button class="btn-header-action" style="justify-content:flex-start; text-align:left; ${btnStyle}" data-quiz-option="${optIdx}" ${isAnswered ? 'disabled' : ''}>
                   <span style="font-weight:600; width:18px;">${String.fromCharCode(65 + optIdx)}.</span>
                   <span>${opt}</span>
                 </button>
@@ -1000,11 +1500,11 @@ function renderQuizModal() {
           ` : ''}
 
           <div style="display:flex; justify-content:space-between; margin-top:1.5rem;">
-            <button class="btn-secondary-action" id="prevQuizBtn" ${currentIdx === 0 ? 'disabled' : ''}>Previous</button>
+            <button class="btn-header-action" id="prevQuizQuestionBtn" ${currentIdx === 0 ? 'disabled' : ''}>Previous</button>
             ${currentIdx < questions.length - 1 ? `
-              <button class="btn-primary-action" id="nextQuizBtn" ${!isAnswered ? 'disabled' : ''}>Next</button>
+              <button class="btn-primary-action" id="nextQuizQuestionBtn" ${!isAnswered ? 'disabled' : ''}>Next</button>
             ` : `
-              <button class="btn-primary-action" id="finishQuizBtn" ${!isAnswered ? 'disabled' : ''}>Finish & Review</button>
+              <button class="btn-primary-action" id="finishQuizQuestionBtn" ${!isAnswered ? 'disabled' : ''}>Finish & Score</button>
             `}
           </div>
         </div>
@@ -1020,21 +1520,21 @@ function renderFlashcardsModal() {
   const isFlipped = state.modalData?.isFlipped || false;
 
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet">
-        <div class="modal-header-quiet">
-          <span>Revision Flashcard (${currentIdx + 1} of ${deck.length})</span>
-          <button class="btn-quiet-icon" id="closeModalQuietBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">Revision Flashcards (${currentIdx + 1} of ${deck.length})</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
         </div>
-        <div class="modal-body-quiet">
+        <div style="padding:1.25rem 1.4rem;">
           <div 
             style="background:var(--bg-subtle); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:2rem 1.5rem; text-align:center; min-height:180px; display:flex; flex-direction:column; justify-content:center; cursor:pointer;"
-            id="flipCardSurface"
+            id="flipCardSurfaceEl"
           >
             <div style="font-size:var(--text-xs); text-transform:uppercase; color:var(--text-dim); margin-bottom:0.75rem;">
               ${isFlipped ? 'Answer & Derivation' : 'Question / Concept'}
             </div>
-            <div style="font-family:${isFlipped ? 'var(--font-mono)' : 'var(--font-serif)'}; font-size:${isFlipped ? 'var(--text-sm)' : 'var(--text-lg)'}; color:var(--text-main); line-height:1.5; white-space:pre-wrap;">
+            <div style="font-family:var(--font-sans); font-size:var(--text-md); font-weight:500; color:var(--text-main); line-height:1.5; white-space:pre-wrap;">
               ${isFlipped ? card.back : card.front}
             </div>
             <div style="font-size:var(--text-xs); color:var(--text-dim); margin-top:1rem;">
@@ -1043,9 +1543,9 @@ function renderFlashcardsModal() {
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem;">
-            <button class="btn-secondary-action" id="prevCardBtn" ${currentIdx === 0 ? 'disabled' : ''}>Previous</button>
+            <button class="btn-header-action" id="prevFlashCardBtn" ${currentIdx === 0 ? 'disabled' : ''}>Previous</button>
             <span style="font-size:var(--text-xs); color:var(--text-dim);">${currentIdx + 1} / ${deck.length}</span>
-            <button class="btn-secondary-action" id="nextCardBtn" ${currentIdx === deck.length - 1 ? 'disabled' : ''}>Next</button>
+            <button class="btn-header-action" id="nextFlashCardBtn" ${currentIdx === deck.length - 1 ? 'disabled' : ''}>Next</button>
           </div>
         </div>
       </div>
@@ -1053,40 +1553,40 @@ function renderFlashcardsModal() {
   `;
 }
 
-function renderMarksCalcModal() {
+function renderCalcModal() {
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet" style="max-width:480px;">
-        <div class="modal-header-quiet">
-          <span>Target Mark Calculator</span>
-          <button class="btn-quiet-icon" id="closeModalQuietBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card" style="max-width:480px;">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">Target Mark Calculator</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
         </div>
-        <div class="modal-body-quiet">
+        <div style="padding:1.25rem;">
           <p style="font-size:var(--text-xs); color:var(--text-muted); margin-bottom:1rem;">
-            Calculates required Autonomous End-Semester score based on current internal marks (TAE: 20 + CAE: 20 + ESE: 60 = 100).
+            Autonomous Scheme: Teacher Assessment (TAE: 20) + Mid-Sem (CAE: 20) + End-Sem (ESE: 60) = 100 Marks.
           </p>
           <div style="display:flex; flex-direction:column; gap:0.75rem;">
             <div class="form-field-quiet">
-              <label>Teacher Assessment (TAE / 20):</label>
-              <input class="input-quiet" type="number" min="0" max="20" id="taeInputVal" value="18" />
+              <label style="font-size:var(--text-xs); color:var(--text-muted);">Teacher Assessment (TAE / 20):</label>
+              <input class="input-quiet" type="number" min="0" max="20" id="calcTaeField" value="18" />
             </div>
             <div class="form-field-quiet">
-              <label>Mid-Sem Exam (CAE / 20):</label>
-              <input class="input-quiet" type="number" min="0" max="20" id="caeInputVal" value="16" />
+              <label style="font-size:var(--text-xs); color:var(--text-muted);">Continuous Assessment / Mid-Sem (CAE / 20):</label>
+              <input class="input-quiet" type="number" min="0" max="20" id="calcCaeField" value="16" />
             </div>
             <div class="form-field-quiet">
-              <label>Target Grade:</label>
-              <select class="input-quiet" id="gradeTargetSelect">
+              <label style="font-size:var(--text-xs); color:var(--text-muted);">Target Grade:</label>
+              <select class="input-quiet" id="calcTargetGradeSelect">
                 <option value="90">O Grade (>= 90 Marks / 10 CGPA)</option>
                 <option value="80" selected>A+ Grade (>= 80 Marks / 9 CGPA)</option>
                 <option value="70">A Grade (>= 70 Marks / 8 CGPA)</option>
                 <option value="60">B+ Grade (>= 60 Marks / 7 CGPA)</option>
               </select>
             </div>
-            <button class="btn-primary-action" id="calcScoreBtn" style="justify-content:center; margin-top:0.35rem;">
-              Calculate Required ESE Marks
+            <button class="btn-primary-action" id="runCalcMarksBtn" style="justify-content:center; margin-top:0.25rem;">
+              Calculate Required ESE Score
             </button>
-            <div class="output-box-quiet" id="calcModalOutput">Enter internal marks and click Calculate.</div>
+            <div class="output-box-quiet" id="calcModalOutput">Enter internal scores to compute required End-Sem score.</div>
           </div>
         </div>
       </div>
@@ -1096,23 +1596,23 @@ function renderMarksCalcModal() {
 
 function renderSettingsModal() {
   return `
-    <div class="modal-overlay-quiet" id="modalBackdrop">
-      <div class="modal-dialog-quiet" style="max-width:440px;">
-        <div class="modal-header-quiet">
-          <span>AI Tutor Settings</span>
-          <button class="btn-quiet-icon" id="closeModalQuietBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
+    <div class="dialog-modal-backdrop" id="modalBackdrop">
+      <div class="dialog-modal-card" style="max-width:440px;">
+        <div style="padding:0.85rem 1.15rem; border-bottom:1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">AI Tutor Settings</span>
+          <button class="btn-icon-square" id="closeGenericModalBtn"><i data-lucide="x" style="width:14px; height:14px;"></i></button>
         </div>
-        <div class="modal-body-quiet">
+        <div style="padding:1.25rem;">
           <p style="font-size:var(--text-xs); color:var(--text-muted); margin-bottom:1rem;">
-            The portal provides offline syllabus answers by default. Enter a Gemini API key if you want free-form live LLM reasoning.
+            The portal provides offline grounded syllabus answers. Enter a Gemini API key if you desire free-form live LLM reasoning.
           </p>
           <div class="form-field-quiet">
-            <label>Google Gemini API Key (stored in local browser only):</label>
-            <input class="input-quiet" type="password" id="apiKeySettingInput" value="${state.geminiApiKey}" placeholder="AIzaSy..." />
+            <label style="font-size:var(--text-xs); color:var(--text-muted);">Google Gemini API Key (stored locally):</label>
+            <input class="input-quiet" type="password" id="geminiApiKeySetting" value="${state.geminiApiKey}" placeholder="AIzaSy..." />
           </div>
           <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem;">
-            <button class="btn-secondary-action" id="clearKeyQuietBtn">Clear</button>
-            <button class="btn-primary-action" id="saveKeyQuietBtn">Save Key</button>
+            <button class="btn-header-action" id="clearApiKeyQuietBtn">Clear</button>
+            <button class="btn-primary-action" id="saveApiKeyQuietBtn">Save Key</button>
           </div>
         </div>
       </div>
@@ -1126,13 +1626,30 @@ function renderSettingsModal() {
 
 function attachEventListeners() {
   // Mobile Nav Toggle
-  document.getElementById('toggleMobileNav')?.addEventListener('click', () => {
+  document.getElementById('toggleMobileNavBtn')?.addEventListener('click', () => {
     state.mobileSidebarOpen = !state.mobileSidebarOpen;
     renderApp();
   });
 
-  // Semester Selector
-  document.getElementById('semSelect')?.addEventListener('change', (e) => {
+  // Logo Click -> Dashboard
+  document.getElementById('brandHomeNav')?.addEventListener('click', () => {
+    state.activeView = 'dashboard';
+    saveState();
+    renderApp();
+  });
+
+  // Navigation Links View Switching
+  document.querySelectorAll('[data-nav-view]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.activeView = btn.getAttribute('data-nav-view');
+      state.mobileSidebarOpen = false;
+      saveState();
+      renderApp();
+    });
+  });
+
+  // Semester Dropdown
+  document.getElementById('semesterSelector')?.addEventListener('change', (e) => {
     const semId = e.target.value;
     state.activeSemesterId = semId;
     const semObj = SEMESTERS.find(s => s.id === semId);
@@ -1144,10 +1661,11 @@ function attachEventListeners() {
     showToast(`Switched to ${semObj?.name}`);
   });
 
-  // Left Nav Subject Selection
-  document.querySelectorAll('[data-nav-code]').forEach(btn => {
+  // Course Selection in Sidebar & Dashboard
+  document.querySelectorAll('[data-select-course]').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.activeCourseCode = btn.getAttribute('data-nav-code');
+      state.activeCourseCode = btn.getAttribute('data-select-course');
+      state.activeView = 'course';
       state.activeTab = 'units';
       state.mobileSidebarOpen = false;
       saveState();
@@ -1155,7 +1673,59 @@ function attachEventListeners() {
     });
   });
 
-  // Tabs Switcher
+  // Dashboard shortcuts
+  document.getElementById('resumeStudyingBtn')?.addEventListener('click', (e) => {
+    const code = e.currentTarget.getAttribute('data-jump-course');
+    state.activeCourseCode = code;
+    state.activeView = 'course';
+    state.activeTab = 'units';
+    saveState();
+    renderApp();
+  });
+
+  document.getElementById('dashOpenPlannerBtn')?.addEventListener('click', () => {
+    state.activeView = 'planner';
+    saveState();
+    renderApp();
+  });
+
+  document.getElementById('dashOpenResearchBtn')?.addEventListener('click', () => {
+    state.activeView = 'research';
+    saveState();
+    renderApp();
+  });
+
+  document.getElementById('dashAddTaskModalBtn')?.addEventListener('click', () => {
+    state.activeModal = 'taskModal';
+    renderApp();
+  });
+
+  // Recently viewed jump
+  document.querySelectorAll('[data-jump-recent-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.getAttribute('data-jump-recent-code');
+      const tab = btn.getAttribute('data-jump-recent-tab');
+      if (code) {
+        state.activeCourseCode = code;
+        state.activeView = 'course';
+        state.activeTab = tab || 'units';
+        saveState();
+        renderApp();
+      }
+    });
+  });
+
+  // Dashboard Task Toggle Check
+  document.querySelectorAll('[data-dash-toggle-task]').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const id = chk.getAttribute('data-dash-toggle-task');
+      toggleTaskCompleted(id);
+      renderApp();
+      showToast("Task updated!");
+    });
+  });
+
+  // Underline Tabs Switcher
   document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.activeTab = btn.getAttribute('data-tab');
@@ -1163,25 +1733,25 @@ function attachEventListeners() {
     });
   });
 
-  // Theme Toggle
-  document.getElementById('toggleThemeBtn')?.addEventListener('click', () => {
+  // Theme Switch
+  document.getElementById('themeSwitchBtn')?.addEventListener('click', () => {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
     saveState();
     renderApp();
-    showToast(`Theme changed to ${state.theme} mode`);
+    showToast(`Switched to ${state.theme} mode`);
   });
 
-  // Toggle Right Sidebar
+  // Right Panel Toggle
   document.getElementById('toggleRightPanelBtn')?.addEventListener('click', () => {
     state.isRightSidebarOpen = !state.isRightSidebarOpen;
     renderApp();
   });
 
   // Pomodoro Focus Timer
-  document.getElementById('timerToggleBtn')?.addEventListener('click', toggleFocusTimer);
+  document.getElementById('timerWidgetBtn')?.addEventListener('click', toggleFocusTimer);
 
-  // Command Palette Open & Keyboard Shortcuts
-  document.getElementById('openSearchBtn')?.addEventListener('click', () => {
+  // Command Palette Open & Shortcuts
+  document.getElementById('openCommandPaletteBtn')?.addEventListener('click', () => {
     state.activeModal = 'search';
     renderApp();
   });
@@ -1198,17 +1768,11 @@ function attachEventListeners() {
     }
   });
 
-  // Study Tools Menu Modal
-  document.getElementById('openStudyMenuBtn')?.addEventListener('click', () => {
-    state.activeModal = 'studyMenu';
-    renderApp();
-  });
-
   // AI Drawer Open / Close
-  document.getElementById('openAiDrawerBtn')?.addEventListener('click', () => {
+  document.getElementById('openAiDrawerTrigger')?.addEventListener('click', () => {
     state.isAiDrawerOpen = true;
     renderApp();
-    setTimeout(() => document.getElementById('drawerChatInput')?.focus(), 100);
+    setTimeout(() => document.getElementById('aiDrawerInput')?.focus(), 100);
   });
 
   document.getElementById('closeAiDrawerBtn')?.addEventListener('click', () => {
@@ -1216,176 +1780,298 @@ function attachEventListeners() {
     renderApp();
   });
 
-  document.getElementById('aiDrawerBackdrop')?.addEventListener('click', () => {
+  document.getElementById('aiDrawerOverlayBackdrop')?.addEventListener('click', () => {
     state.isAiDrawerOpen = false;
     renderApp();
   });
 
-  // Action Bar Buttons
-  document.getElementById('actionContinueUnit')?.addEventListener('click', () => {
+  // Course Workspace Actions
+  document.getElementById('jumpUnitOneBtn')?.addEventListener('click', () => {
     state.activeTab = 'units';
     renderApp();
     document.getElementById('unitCard_0')?.scrollIntoView({ behavior: 'smooth' });
   });
 
-  document.getElementById('actionPrimaryLab')?.addEventListener('click', () => {
+  document.getElementById('openLabDirectBtn')?.addEventListener('click', () => {
     state.activeTab = 'lab';
     renderApp();
   });
 
-  document.getElementById('actionAskCourseAi')?.addEventListener('click', () => {
+  document.getElementById('askCourseAiBtn')?.addEventListener('click', () => {
     state.isAiDrawerOpen = true;
     renderApp();
-    executeAiQuery(`Summarize the syllabus and key examination focus areas for ${state.activeCourseCode}`);
+    executeAiAssistantQuery(`Summarize the syllabus, course outcomes, and exam preparation tips for ${state.activeCourseCode}`);
   });
 
-  document.getElementById('actionPrintNotes')?.addEventListener('click', () => {
+  document.getElementById('printSyllabusBtn')?.addEventListener('click', () => {
     window.print();
   });
 
-  // Unit Accordion Toggle
-  document.querySelectorAll('[data-toggle-unit]').forEach(hdr => {
+  // Unit Accordion
+  document.querySelectorAll('[data-toggle-unit-idx]').forEach(hdr => {
     hdr.addEventListener('click', () => {
-      const uIdx = hdr.getAttribute('data-toggle-unit');
-      document.getElementById(`unitCard_${uIdx}`)?.classList.toggle('open');
+      const idx = hdr.getAttribute('data-toggle-unit-idx');
+      document.getElementById(`unitCard_${idx}`)?.classList.toggle('open');
     });
   });
 
-  // Mastery Checkbox
-  document.querySelectorAll('.mastery-check').forEach(chk => {
+  // Unit Mastery Checkbox
+  document.querySelectorAll('.unit-mastery-chk').forEach(chk => {
     chk.addEventListener('change', () => {
-      const uId = chk.getAttribute('data-unit-id');
+      const uId = chk.getAttribute('data-u-id');
       toggleUnitCompleted(uId);
       renderApp();
-      showToast(state.completedUnits.includes(uId) ? "Unit marked complete" : "Unit marked incomplete");
+      showToast(state.completedUnits.includes(uId) ? "Unit marked mastered!" : "Unit marked incomplete");
     });
   });
 
   // Topic Check Item
-  document.querySelectorAll('.topic-check-item[data-topic-key]').forEach(item => {
-    item.addEventListener('click', () => {
-      const key = item.getAttribute('data-topic-key');
+  document.querySelectorAll('[data-topic-check-key]').forEach(row => {
+    row.addEventListener('click', () => {
+      const key = row.getAttribute('data-topic-check-key');
       toggleTopicChecked(key);
       renderApp();
     });
   });
 
-  // Unit Read Notes & AI Explain
-  document.querySelectorAll('[data-unit-open-notes]').forEach(btn => {
+  // Read Notes Tab jump
+  document.querySelectorAll('[data-jump-to-notes-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.activeTab = 'notes';
       renderApp();
     });
   });
 
-  document.querySelectorAll('[data-unit-ai-explain]').forEach(btn => {
+  document.querySelectorAll('[data-unit-ask-ai]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const title = btn.getAttribute('data-unit-ai-explain');
+      const title = btn.getAttribute('data-unit-ask-ai');
       state.isAiDrawerOpen = true;
       renderApp();
-      executeAiQuery(`Explain unit: "${title}" in detail with key theorems and exam points.`);
+      executeAiAssistantQuery(`Explain unit: "${title}" in detail with key theorems, derivations, and exam points.`);
     });
   });
 
   // Concept AI Deep Dive
-  document.querySelectorAll('[data-ai-concept]').forEach(btn => {
+  document.querySelectorAll('[data-ai-concept-ask]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const c = btn.getAttribute('data-ai-concept');
+      const c = btn.getAttribute('data-ai-concept-ask');
       state.isAiDrawerOpen = true;
       renderApp();
-      executeAiQuery(`Explain ${c} with complete mathematical formulation and complexity analysis.`);
+      executeAiAssistantQuery(`Explain ${c} with complete mathematical formulation and complexity analysis.`);
     });
   });
 
-  document.querySelectorAll('[data-copy-math]').forEach(btn => {
+  document.querySelectorAll('[data-copy-math-text]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const f = btn.getAttribute('data-copy-math');
+      const f = btn.getAttribute('data-copy-math-text');
       navigator.clipboard.writeText(f);
       showToast("Formula copied to clipboard");
     });
   });
 
-  // Model Answer AI
-  document.querySelectorAll('[data-ai-model-answer]').forEach(btn => {
+  // Questions AI Answer
+  document.querySelectorAll('[data-ai-answer-q]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const q = btn.getAttribute('data-ai-model-answer');
+      const q = btn.getAttribute('data-ai-answer-q');
       state.isAiDrawerOpen = true;
       renderApp();
-      executeAiQuery(`Provide a model autonomous exam answer for: "${q}"`);
+      executeAiAssistantQuery(`Provide a model autonomous exam answer for: "${q}"`);
     });
   });
 
-  // Empty State buttons
-  document.getElementById('emptyStateJumpLab')?.addEventListener('click', () => {
-    state.activeTab = 'lab';
-    renderApp();
-  });
-
-  document.getElementById('emptyStateAskAi')?.addEventListener('click', () => {
-    state.isAiDrawerOpen = true;
-    renderApp();
-    executeAiQuery(`Provide an overview and recommended milestones for ${state.activeCourseCode}`);
-  });
-
-  // Scratchpad Note Save
-  document.getElementById('saveScratchpadBtn')?.addEventListener('click', () => {
-    const text = document.getElementById('studentScratchpad')?.value || "";
+  // Course Scratchpad Save
+  document.getElementById('saveCourseNoteBtn')?.addEventListener('click', () => {
+    const text = document.getElementById('courseScratchpadArea')?.value || "";
     saveStudentNote(state.activeCourseCode, text);
-    showToast("Scratchpad note saved");
+    showToast("Course note saved!");
   });
 
-  // Lab Simulators
-  attachLabSimulators();
-
-  // Sidebar Tool Shortcuts
-  document.getElementById('sidePracticeQuiz')?.addEventListener('click', () => {
-    state.activeModal = 'quiz';
-    state.modalData = { quizIndex: 0, userAnswers: {} };
+  // Resource Library Actions
+  document.getElementById('resourceSearchInput')?.addEventListener('input', (e) => {
+    state.resourceFilter.search = e.target.value;
+    renderApp();
+  });
+  document.getElementById('filterResourceType')?.addEventListener('change', (e) => {
+    state.resourceFilter.type = e.target.value;
+    renderApp();
+  });
+  document.getElementById('filterResourceSubject')?.addEventListener('change', (e) => {
+    state.resourceFilter.subject = e.target.value;
+    renderApp();
+  });
+  document.getElementById('resetResourceFilterBtn')?.addEventListener('click', () => {
+    state.resourceFilter = { semester: "ALL", subject: "ALL", type: "ALL", search: "" };
     renderApp();
   });
 
-  document.getElementById('sideFlashcards')?.addEventListener('click', () => {
-    state.activeModal = 'flashcards';
-    state.modalData = { flashIndex: 0, isFlipped: false };
+  document.querySelectorAll('[data-open-resource-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-open-resource-id');
+      const res = ACADEMIC_RESOURCES.find(r => r.id === id);
+      if (res) {
+        state.activeModal = 'pdfReader';
+        state.modalData = { resource: res };
+        renderApp();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-bookmark-resource-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-bookmark-resource-id');
+      const res = ACADEMIC_RESOURCES.find(r => r.id === id);
+      if (res) {
+        toggleBookmarkItem({
+          id: res.id,
+          type: res.type,
+          title: res.title,
+          subtitle: res.subjectTitle,
+          linkCode: res.subjectCode !== 'GENERAL' ? res.subjectCode : null,
+          linkTab: 'units'
+        });
+        renderApp();
+        showToast("Bookmark updated!");
+      }
+    });
+  });
+
+  // Planner Task Toggle & Delete
+  document.querySelectorAll('[data-toggle-task-id]').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const id = chk.getAttribute('data-toggle-task-id');
+      toggleTaskCompleted(id);
+      renderApp();
+      showToast("Task updated!");
+    });
+  });
+
+  document.querySelectorAll('[data-delete-task-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-delete-task-id');
+      deleteStudyTask(id);
+      renderApp();
+      showToast("Task deleted");
+    });
+  });
+
+  document.getElementById('openNewTaskModalBtn')?.addEventListener('click', () => {
+    state.activeModal = 'taskModal';
     renderApp();
   });
 
-  document.getElementById('sideMarkTarget')?.addEventListener('click', () => {
-    state.activeModal = 'calc';
-    renderApp();
+  // Create Task Form Submit
+  document.getElementById('createTaskForm')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const title = document.getElementById('taskTitleInput')?.value.trim();
+    const courseCode = document.getElementById('taskCourseSelect')?.value;
+    const dueDate = document.getElementById('taskDateInput')?.value;
+    const priority = document.getElementById('taskPrioritySelect')?.value;
+    const description = document.getElementById('taskDescInput')?.value.trim();
+
+    if (title) {
+      addStudyTask({ title, courseCode, dueDate, priority, description });
+      state.activeModal = null;
+      renderApp();
+      showToast("New study task created!");
+    }
   });
 
-  document.getElementById('sideLabHub')?.addEventListener('click', () => {
-    state.activeCourseCode = '2604PCC526';
-    state.activeTab = 'lab';
+  // Research Papers Handlers
+  document.querySelectorAll('[data-paper-status-id]').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const id = sel.getAttribute('data-paper-status-id');
+      setPaperStatus(id, e.target.value);
+      showToast("Reading status updated!");
+    });
+  });
+
+  document.querySelectorAll('[data-copy-bibtex]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-copy-bibtex');
+      const paper = RESEARCH_PAPERS.find(p => p.id === id);
+      if (paper?.bibtex) {
+        navigator.clipboard.writeText(paper.bibtex);
+        showToast("BibTeX citation copied to clipboard!");
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-paper-notes-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-paper-notes-toggle');
+      const box = document.getElementById(`noteBox_${id}`);
+      if (box) {
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-save-paper-note]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-save-paper-note');
+      const val = document.getElementById(`paperNoteInput_${id}`)?.value || "";
+      savePaperNote(id, val);
+      showToast("Research note saved!");
+    });
+  });
+
+  document.querySelectorAll('[data-bookmark-paper-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-bookmark-paper-id');
+      const paper = RESEARCH_PAPERS.find(p => p.id === id);
+      if (paper) {
+        toggleBookmarkItem({
+          id: paper.id,
+          type: "Research Paper",
+          title: paper.title,
+          subtitle: `${paper.authors} (${paper.year})`,
+          linkCode: paper.subjectCode,
+          linkTab: 'notes'
+        });
+        renderApp();
+        showToast("Paper bookmark updated!");
+      }
+    });
+  });
+
+  // Bookmarks View Actions
+  document.querySelectorAll('[data-remove-bookmark-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-remove-bookmark-id');
+      toggleBookmarkItem({ id });
+      renderApp();
+      showToast("Bookmark removed");
+    });
+  });
+
+  document.querySelectorAll('[data-jump-bookmark-code]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.getAttribute('data-jump-bookmark-code');
+      const tab = btn.getAttribute('data-jump-bookmark-tab');
+      state.activeCourseCode = code;
+      state.activeView = 'course';
+      state.activeTab = tab || 'units';
+      saveState();
+      renderApp();
+    });
+  });
+
+  document.getElementById('exploreResourcesBtn')?.addEventListener('click', () => {
+    state.activeView = 'resources';
     saveState();
     renderApp();
   });
 
-  // Study Menu Modal Items
-  document.getElementById('menuOpenQuiz')?.addEventListener('click', () => {
-    state.activeModal = 'quiz';
-    state.modalData = { quizIndex: 0, userAnswers: {} };
+  // Modal Closers
+  document.getElementById('closeGenericModalBtn')?.addEventListener('click', () => {
+    state.activeModal = null;
     renderApp();
   });
-  document.getElementById('menuOpenFlash')?.addEventListener('click', () => {
-    state.activeModal = 'flashcards';
-    state.modalData = { flashIndex: 0, isFlipped: false };
+  document.getElementById('closeGenericModalActionBtn')?.addEventListener('click', () => {
+    state.activeModal = null;
     renderApp();
   });
-  document.getElementById('menuOpenCalc')?.addEventListener('click', () => {
-    state.activeModal = 'calc';
-    renderApp();
-  });
-  document.getElementById('menuOpenLab')?.addEventListener('click', () => {
-    state.activeCourseCode = '2604PCC526';
-    state.activeTab = 'lab';
-    saveState();
-    renderApp();
-  });
-
-  // Close Modal
-  document.getElementById('closeModalQuietBtn')?.addEventListener('click', () => {
+  document.getElementById('cancelTaskModalBtn')?.addEventListener('click', () => {
     state.activeModal = null;
     renderApp();
   });
@@ -1396,42 +2082,21 @@ function attachEventListeners() {
     }
   });
 
-  // Settings Modal Buttons
-  document.getElementById('openApiKeyModal')?.addEventListener('click', () => {
-    state.activeModal = 'settings';
-    renderApp();
-  });
-  document.getElementById('saveKeyQuietBtn')?.addEventListener('click', () => {
-    const k = document.getElementById('apiKeySettingInput')?.value.trim();
-    state.geminiApiKey = k;
-    saveState();
-    state.activeModal = null;
-    renderApp();
-    showToast("Gemini API key saved");
-  });
-  document.getElementById('clearKeyQuietBtn')?.addEventListener('click', () => {
-    state.geminiApiKey = "";
-    saveState();
-    state.activeModal = null;
-    renderApp();
-    showToast("Gemini API key cleared");
-  });
-
-  // Drawer Chat Form
-  document.getElementById('drawerChatForm')?.addEventListener('submit', (e) => {
+  // AI Drawer Form
+  document.getElementById('aiDrawerForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const input = document.getElementById('drawerChatInput');
+    const input = document.getElementById('aiDrawerInput');
     const q = input?.value.trim();
     if (q) {
       input.value = '';
-      executeAiQuery(q);
+      executeAiAssistantQuery(q);
     }
   });
 
-  document.querySelectorAll('[data-ai-chip]').forEach(chip => {
+  document.querySelectorAll('[data-send-ai-prompt]').forEach(chip => {
     chip.addEventListener('click', () => {
-      const q = chip.getAttribute('data-ai-chip');
-      executeAiQuery(q);
+      const q = chip.getAttribute('data-send-ai-prompt');
+      executeAiAssistantQuery(q);
     });
   });
 
@@ -1446,16 +2111,59 @@ function attachEventListeners() {
     renderApp();
   });
 
-  // Quiz Modal Logic
+  document.getElementById('openAiSettingsBtn')?.addEventListener('click', () => {
+    state.activeModal = 'settings';
+    renderApp();
+  });
+
+  document.getElementById('saveApiKeyQuietBtn')?.addEventListener('click', () => {
+    const k = document.getElementById('geminiApiKeySetting')?.value.trim();
+    state.geminiApiKey = k;
+    saveState();
+    state.activeModal = null;
+    renderApp();
+    showToast("Gemini API key saved!");
+  });
+
+  document.getElementById('clearApiKeyQuietBtn')?.addEventListener('click', () => {
+    state.geminiApiKey = "";
+    saveState();
+    state.activeModal = null;
+    renderApp();
+    showToast("API key cleared");
+  });
+
+  // Shortcuts
+  document.getElementById('openQuizShortcut')?.addEventListener('click', () => {
+    state.activeModal = 'quiz';
+    state.modalData = { quizIndex: 0, userAnswers: {} };
+    renderApp();
+  });
+
+  document.getElementById('openFlashShortcut')?.addEventListener('click', () => {
+    state.activeModal = 'flashcards';
+    state.modalData = { flashIndex: 0, isFlipped: false };
+    renderApp();
+  });
+
+  document.getElementById('openCalcShortcut')?.addEventListener('click', () => {
+    state.activeModal = 'calc';
+    renderApp();
+  });
+
+  // Lab Simulators
+  attachLabSimulators();
+
+  // Quiz Navigation
   attachQuizHandlers();
 
-  // Flashcards Logic
+  // Flashcards Navigation
   attachFlashcardHandlers();
 
-  // Marks Calc Logic
+  // Marks Calculator
   attachMarksCalcHandlers();
 
-  // Command Palette Live Search Logic
+  // Command Palette Search
   attachCommandPaletteHandlers();
 }
 
@@ -1470,16 +2178,16 @@ function toggleFocusTimer() {
     showToast("Focus timer paused");
   } else {
     state.pomodoro.isRunning = true;
-    showToast("Focus timer started (25 min)");
+    showToast("Focus session started (25 min)");
     state.pomodoro.timerId = setInterval(() => {
       if (state.pomodoro.seconds > 0) {
         state.pomodoro.seconds--;
-        const digits = document.getElementById('timerDigits');
-        if (digits) digits.textContent = formatTime(state.pomodoro.seconds);
+        const el = document.getElementById('timerDigitEl');
+        if (el) el.textContent = formatTime(state.pomodoro.seconds);
       } else {
         clearInterval(state.pomodoro.timerId);
         state.pomodoro.isRunning = false;
-        showToast("Focus session complete! Take a 5-minute break.");
+        showToast("Focus session finished! Time for a 5-minute break.");
         state.pomodoro.seconds = state.pomodoro.mode === 'work' ? 5 * 60 : 25 * 60;
         state.pomodoro.mode = state.pomodoro.mode === 'work' ? 'break' : 'work';
       }
@@ -1610,9 +2318,9 @@ function attachLabSimulators() {
   });
 
   // Copy Lab Code
-  document.querySelectorAll('[data-lab-copy]').forEach(btn => {
+  document.querySelectorAll('[data-copy-lab-code-id]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-lab-copy');
+      const id = btn.getAttribute('data-copy-lab-code-id');
       const el = document.getElementById(`code_${id}`);
       if (el) {
         navigator.clipboard.writeText(el.textContent);
@@ -1621,54 +2329,45 @@ function attachLabSimulators() {
     });
   });
 
-  // Lab Part Filter
-  document.querySelectorAll('[data-lab-part]').forEach(btn => {
+  // Filter Lab Part
+  document.querySelectorAll('[data-filter-lab-part]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('[data-lab-part]').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('[data-filter-lab-part]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const p = btn.getAttribute('data-lab-part');
+      const p = btn.getAttribute('data-filter-lab-part');
 
-      document.querySelectorAll('.lab-card-editorial').forEach(card => {
-        const cardPart = card.getAttribute('data-part');
+      document.querySelectorAll('[data-lab-card-part]').forEach(card => {
+        const cardPart = card.getAttribute('data-lab-card-part');
         card.style.display = (p === 'ALL' || cardPart === p) ? 'block' : 'none';
       });
-    });
-  });
-
-  // Question Marks Filter
-  document.querySelectorAll('[data-filter-q]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const f = btn.getAttribute('data-filter-q');
-      state.questionMarksFilter = f === 'ALL' ? 'ALL' : parseInt(f, 10);
-      renderApp();
     });
   });
 }
 
 // ============================================================================
-// Quiz & Flashcard Interactive Handlers
+// Quiz & Flashcards Logic
 // ============================================================================
 
 function attachQuizHandlers() {
-  document.querySelectorAll('[data-quiz-pick]').forEach(btn => {
+  document.querySelectorAll('[data-quiz-option]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const pick = parseInt(btn.getAttribute('data-quiz-pick'), 10);
+      const pick = parseInt(btn.getAttribute('data-quiz-option'), 10);
       state.modalData.userAnswers[state.modalData.quizIndex] = pick;
       renderApp();
     });
   });
 
-  document.getElementById('nextQuizBtn')?.addEventListener('click', () => {
+  document.getElementById('nextQuizQuestionBtn')?.addEventListener('click', () => {
     state.modalData.quizIndex++;
     renderApp();
   });
 
-  document.getElementById('prevQuizBtn')?.addEventListener('click', () => {
+  document.getElementById('prevQuizQuestionBtn')?.addEventListener('click', () => {
     state.modalData.quizIndex--;
     renderApp();
   });
 
-  document.getElementById('finishQuizBtn')?.addEventListener('click', () => {
+  document.getElementById('finishQuizQuestionBtn')?.addEventListener('click', () => {
     const questions = QUIZ_QUESTIONS[state.activeCourseCode] || QUIZ_QUESTIONS["2604PCC501"];
     let score = 0;
     questions.forEach((q, idx) => {
@@ -1683,18 +2382,18 @@ function attachQuizHandlers() {
 }
 
 function attachFlashcardHandlers() {
-  document.getElementById('flipCardSurface')?.addEventListener('click', () => {
+  document.getElementById('flipCardSurfaceEl')?.addEventListener('click', () => {
     state.modalData.isFlipped = !state.modalData.isFlipped;
     renderApp();
   });
 
-  document.getElementById('nextCardBtn')?.addEventListener('click', () => {
+  document.getElementById('nextFlashCardBtn')?.addEventListener('click', () => {
     state.modalData.flashIndex++;
     state.modalData.isFlipped = false;
     renderApp();
   });
 
-  document.getElementById('prevCardBtn')?.addEventListener('click', () => {
+  document.getElementById('prevFlashCardBtn')?.addEventListener('click', () => {
     state.modalData.flashIndex--;
     state.modalData.isFlipped = false;
     renderApp();
@@ -1702,10 +2401,10 @@ function attachFlashcardHandlers() {
 }
 
 function attachMarksCalcHandlers() {
-  document.getElementById('calcScoreBtn')?.addEventListener('click', () => {
-    const tae = parseFloat(document.getElementById('taeInputVal').value) || 0;
-    const cae = parseFloat(document.getElementById('caeInputVal').value) || 0;
-    const target = parseFloat(document.getElementById('gradeTargetSelect').value) || 80;
+  document.getElementById('runCalcMarksBtn')?.addEventListener('click', () => {
+    const tae = parseFloat(document.getElementById('calcTaeField').value) || 0;
+    const cae = parseFloat(document.getElementById('calcCaeField').value) || 0;
+    const target = parseFloat(document.getElementById('calcTargetGradeSelect').value) || 80;
 
     const internalTotal = tae + cae; // out of 40
     const needed = target - internalTotal; // out of 60
@@ -1724,8 +2423,8 @@ function attachMarksCalcHandlers() {
 }
 
 function attachCommandPaletteHandlers() {
-  const input = document.getElementById('cmdPaletteInput');
-  const resultsBox = document.getElementById('cmdResultsList');
+  const input = document.getElementById('cmdPaletteSearchInput');
+  const resultsBox = document.getElementById('cmdPaletteResults');
 
   input?.addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase().trim();
@@ -1743,44 +2442,66 @@ function attachCommandPaletteHandlers() {
           matches.push({
             title: `${c.code}: ${c.title}`,
             sub: `${sem.name} • ${c.type}`,
-            code: c.code,
-            tab: 'units'
-          });
-        }
-        if (c.units) {
-          c.units.forEach(u => {
-            if (u.title.toLowerCase().includes(q) || u.topics.some(t => t.toLowerCase().includes(q))) {
-              matches.push({
-                title: `${c.code} ${u.unitNo}: ${u.title}`,
-                sub: `Syllabus topic in ${c.title}`,
-                code: c.code,
-                tab: 'units'
-              });
+            type: "Subject",
+            action: () => {
+              state.activeCourseCode = c.code;
+              state.activeView = 'course';
+              state.activeTab = 'units';
             }
           });
         }
       });
     });
 
+    // Search research papers
+    RESEARCH_PAPERS.forEach(p => {
+      if (p.title.toLowerCase().includes(q) || p.authors.toLowerCase().includes(q) || p.tags.some(t => t.toLowerCase().includes(q))) {
+        matches.push({
+          title: `Paper: ${p.title}`,
+          sub: `${p.authors} (${p.year}) • ${p.venue}`,
+          type: "Research Paper",
+          action: () => {
+            state.activeView = 'research';
+          }
+        });
+      }
+    });
+
+    // Search resources
+    ACADEMIC_RESOURCES.forEach(r => {
+      if (r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)) {
+        matches.push({
+          title: `Resource: ${r.title}`,
+          sub: `${r.type} • ${r.subjectTitle}`,
+          type: "Resource",
+          action: () => {
+            state.activeView = 'resources';
+          }
+        });
+      }
+    });
+
     if (matches.length === 0) {
-      resultsBox.innerHTML = `<p style="font-size:var(--text-xs); color:var(--text-dim); padding:1rem; text-align:center;">No matching courses or topics found.</p>`;
+      resultsBox.innerHTML = `<p style="font-size:var(--text-xs); color:var(--text-dim); padding:1rem; text-align:center;">No matching records found.</p>`;
       return;
     }
 
-    resultsBox.innerHTML = matches.slice(0, 8).map(m => `
-      <button class="btn-secondary-action" style="width:100%; justify-content:flex-start; text-align:left; padding:0.5rem 0.75rem; margin-bottom:0.25rem;" data-cmd-jump-code="${m.code}" data-cmd-jump-tab="${m.tab}">
-        <div>
-          <div style="font-size:var(--text-sm); font-weight:500; color:var(--text-main);">${m.title}</div>
-          <div style="font-size:var(--text-xs); color:var(--text-dim);">${m.sub}</div>
+    resultsBox.innerHTML = matches.slice(0, 8).map((m, idx) => `
+      <button class="btn-header-action" style="width:100%; justify-content:flex-start; text-align:left; padding:0.55rem 0.85rem; margin-bottom:0.3rem;" data-cmd-match-idx="${idx}">
+        <div style="flex:1;">
+          <div style="font-size:var(--text-sm); font-weight:600; color:var(--text-main);">${m.title}</div>
+          <div style="font-size:var(--text-xs); color:var(--text-dim); margin-top:0.15rem;">${m.sub}</div>
         </div>
+        <span class="badge-tag">${m.type}</span>
       </button>
     `).join('');
 
-    resultsBox.querySelectorAll('[data-cmd-jump-code]').forEach(btn => {
+    resultsBox.querySelectorAll('[data-cmd-match-idx]').forEach(btn => {
       btn.addEventListener('click', () => {
-        state.activeCourseCode = btn.getAttribute('data-cmd-jump-code');
-        state.activeTab = btn.getAttribute('data-cmd-jump-tab');
+        const idx = parseInt(btn.getAttribute('data-cmd-match-idx'), 10);
+        matches[idx]?.action();
         state.activeModal = null;
+        saveState();
         renderApp();
       });
     });
@@ -1791,7 +2512,7 @@ function attachCommandPaletteHandlers() {
 // AI Tutor Query Execution Engine
 // ============================================================================
 
-async function executeAiQuery(userText) {
+async function executeAiAssistantQuery(userText) {
   state.chatHistory.push({
     sender: "user",
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1846,19 +2567,19 @@ async function executeAiQuery(userText) {
 }
 
 function scrollDrawerToBottom() {
-  const box = document.getElementById('drawerChatStream');
+  const box = document.getElementById('aiChatStream');
   if (box) {
     box.scrollTop = box.scrollHeight;
   }
 }
 
-// Quiet Toast Notification
+// Toast
 function showToast(message) {
   const host = document.getElementById('toastHost');
   if (!host) return;
 
   const toast = document.createElement('div');
-  toast.className = 'toast-pill-quiet';
+  toast.className = 'toast-message-pill';
   toast.textContent = message;
   host.appendChild(toast);
 
