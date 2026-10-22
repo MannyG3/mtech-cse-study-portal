@@ -2,19 +2,19 @@
 // Designed for Modern Academic Portal (NEP-2020, 2026 Pattern)
 
 const STORAGE_KEYS = {
-  THEME: "mtech_theme_v2",
-  COMPLETED_UNITS: "mtech_completed_units_v2",
-  CHECKED_TOPICS: "mtech_checked_topics_v2",
-  BOOKMARKS: "mtech_bookmarks_v2",
-  STUDENT_NOTES: "mtech_student_notes_v2",
-  CHAT_HISTORY: "mtech_chat_history_v2",
-  GEMINI_API_KEY: "mtech_gemini_api_key_v2",
-  ACTIVE_SEMESTER: "mtech_active_sem_v2",
-  ACTIVE_COURSE: "mtech_active_course_v2",
+  THEME: "mtech_theme_v3",
+  COMPLETED_UNITS: "mtech_completed_units_v3",
+  CHECKED_TOPICS: "mtech_checked_topics_v3",
+  BOOKMARKS: "mtech_bookmarks_v3",
+  STUDENT_NOTES: "mtech_student_notes_v3",
+  CHAT_HISTORY: "mtech_chat_history_v3",
+  GEMINI_API_KEY: "mtech_gemini_api_key_v3",
+  ACTIVE_SEMESTER: "mtech_active_sem_v3",
+  ACTIVE_COURSE: "mtech_active_course_v3",
 };
 
 export const state = {
-  theme: localStorage.getItem(STORAGE_KEYS.THEME) || "dark",
+  theme: localStorage.getItem(STORAGE_KEYS.THEME) || "light",
   activeSemesterId: localStorage.getItem(STORAGE_KEYS.ACTIVE_SEMESTER) || "sem1",
   activeCourseCode: localStorage.getItem(STORAGE_KEYS.ACTIVE_COURSE) || "2604PCC501",
   activeTab: "units", // 'units' | 'notes' | 'lab' | 'questions' | 'books'
@@ -26,14 +26,15 @@ export const state = {
     {
       sender: "bot",
       time: "Just now",
-      text: "👋 **Welcome to your M.Tech Computer Engineering AI Copilot!**\n\nI am calibrated on the Autonomous NEP-2020 curriculum (2026 Pattern). You can ask me to:\n- Explain complex algorithmic recurrences & derivations\n- Walk through distributed consensus & clock synchronization\n- Provide step-by-step model answers for 2M, 5M, and 10M exam questions\n- Review and debug code implementations for **Lab Practice - I**.",
-      source: "Neural Syllabus Engine"
+      text: "Welcome to your syllabus study assistant. You can ask for derivations, proof sketches, algorithm runtimes, or sample exam questions for any unit in the curriculum.",
+      source: "Syllabus Reference"
     }
   ],
   geminiApiKey: localStorage.getItem(STORAGE_KEYS.GEMINI_API_KEY) || "",
-  isChatOpen: false,
-  isChatDocked: false, // false = floating drawer, true = docked right column
+  isAiDrawerOpen: false,
   isRightSidebarOpen: true,
+  isStudyMenuOpen: false,
+  isTimerMenuOpen: false,
   activeModal: null, // 'quiz' | 'flashcards' | 'calc' | 'search' | 'settings' | null
   modalData: null,
   mobileSidebarOpen: false,
