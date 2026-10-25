@@ -152,6 +152,206 @@ export const QUIZ_QUESTIONS = {
       correctAnswer: 1,
       explanation: "Under FIFO assumptions, all messages sent before the marker that arrive after the receiving process recorded state constitute in-flight channel state."
     }
+  ],
+  "2604PCC551": [
+    {
+      id: "ir_q1",
+      question: "What is the optimal spacing for skip pointers in a postings list of length L to minimize intersection comparisons?",
+      options: [
+        "L / 2",
+        "floor(sqrt(L))",
+        "log2(L)",
+        "L / 4"
+      ],
+      correctAnswer: 1,
+      explanation: "Placing skip pointers at intervals of floor(sqrt(L)) balances the number of skips with the length of each skipped segment, achieving O(sqrt(L)) skip comparisons."
+    },
+    {
+      id: "ir_q2",
+      question: "In the Okapi BM25 ranking model, what is the role of parameter k1?",
+      options: [
+        "It sets the damping factor for web crawling",
+        "It controls term frequency saturation non-linearly",
+        "It tunes document length normalization penalty",
+        "It sets the Dirichlet prior smoothing value"
+      ],
+      correctAnswer: 1,
+      explanation: "Parameter k1 controls term frequency saturation: as tf increases, BM25 term weight asymptotes towards (k1 + 1), preventing high term repetition from dominating ranking."
+    },
+    {
+      id: "ir_q3",
+      question: "How does the PageRank random surfer model eliminate spider traps and dead-ends?",
+      options: [
+        "By ignoring incoming links to leaf nodes",
+        "By applying a teleportation factor (damping factor d ~ 0.85) to jump to a random web page",
+        "By sorting pages by in-degree alphabetically",
+        "By removing cyclic paths from the web graph"
+      ],
+      correctAnswer: 1,
+      explanation: "With probability 1 - d (~0.15), the random surfer teleports to any random page uniformly, guaranteeing the Markov chain remains irreducible and aperiodic."
+    },
+    {
+      id: "ir_q4",
+      question: "Why is Normalized Discounted Cumulative Gain (NDCG) preferred over Precision@k for web search evaluation?",
+      options: [
+        "NDCG computes in O(1) time",
+        "NDCG accommodates graded relevance judgements (e.g. 0 to 3) and applies logarithmic position discounts",
+        "NDCG does not require an ideal ranking (IDCG)",
+        "NDCG is only suitable for unranked Boolean sets"
+      ],
+      correctAnswer: 1,
+      explanation: "NDCG supports multi-level graded relevance (e.g. 3=vital, 2=relevant, 1=marginal, 0=non-relevant) and discounts results appearing lower in the ranking by 1/log2(rank+1)."
+    }
+  ],
+  "2604PCC552": [
+    {
+      id: "nlp_q1",
+      question: "What primary problem in NLP does Byte-Pair Encoding (BPE) solve for modern language models?",
+      options: [
+        "Eliminates the need for self-attention",
+        "Handles out-of-vocabulary (OOV) tokens by segmenting rare words into frequent subword units",
+        "Guarantees context-free grammar parsing",
+        "Computes exact semantic entailment"
+      ],
+      correctAnswer: 1,
+      explanation: "BPE starts with characters and iteratively merges frequent byte/token pairs, allowing any unknown word to be decomposed into recognized subwords without OOV UNK tokens."
+    },
+    {
+      id: "nlp_q2",
+      question: "Why does the Transformer scaled dot-product attention divide QK^T by sqrt(d_k)?",
+      options: [
+        "To invert the key matrix",
+        "To prevent large magnitude dot products from pushing the softmax function into regions with near-zero gradients",
+        "To enforce orthogonal projections",
+        "To reduce computational complexity from O(n^2) to O(n)"
+      ],
+      correctAnswer: 1,
+      explanation: "For vectors of dimension d_k with independent zero-mean components, the dot product variance grows as d_k; dividing by sqrt(d_k) stabilizes variance to 1, preventing softmax saturation."
+    },
+    {
+      id: "nlp_q3",
+      question: "What is the structural difference between BERT and GPT architectural paradigms?",
+      options: [
+        "BERT uses recurrent LSTMs; GPT uses feedforward CNNs",
+        "BERT is a bidirectional encoder with masked language modeling; GPT is an autoregressive decoder with causal masking",
+        "BERT cannot process text sequences longer than 64 tokens",
+        "GPT uses cross-encoders exclusively"
+      ],
+      correctAnswer: 1,
+      explanation: "BERT uses bidirectional self-attention to encode full context for classification/retrieval; GPT uses causal triangular masking so each token only attends to previous tokens for generation."
+    },
+    {
+      id: "nlp_q4",
+      question: "In Word2Vec Skip-gram, how does Negative Sampling make training efficient?",
+      options: [
+        "It discards words with frequency less than 100",
+        "It replaces the costly full-vocabulary softmax denominator with binary logistic regression against K negative samples",
+        "It trains a separate recurrent network for context",
+        "It factorizes the PPMI matrix with SVD"
+      ],
+      correctAnswer: 1,
+      explanation: "Instead of normalizing over the entire vocabulary |V| (which can be millions of words), Negative Sampling updates only the target word and K (~5-20) sampled noise words."
+    }
+  ],
+  "2604PCC553": [
+    {
+      id: "dl_q1",
+      question: "In ResNet architectures, why do identity skip connections (y = F(x) + x) eliminate the vanishing gradient problem?",
+      options: [
+        "They set all weights to zero",
+        "During backpropagation, the gradient dL/dx contains an additive '+ 1' term that propagates gradients directly to earlier layers",
+        "They double the number of convolutional kernels",
+        "They enforce ReLU outputs to be strictly negative"
+      ],
+      correctAnswer: 1,
+      explanation: "By chain rule, dL/dx = (dL/dy) * (dF/dx + 1). Even if the learned layer weight gradient dF/dx is near zero, the +1 term ensures gradients flow directly through the shortcut."
+    },
+    {
+      id: "dl_q2",
+      question: "What distinction separates the Adam optimizer from standard SGD with momentum?",
+      options: [
+        "Adam uses fixed learning rates without decay",
+        "Adam computes individual adaptive learning rates for each parameter using estimates of both first (mean) and second (uncentered variance) moments",
+        "Adam cannot be used on mini-batches",
+        "Adam discards past gradient information"
+      ],
+      correctAnswer: 1,
+      explanation: "Adam maintains running exponential moving averages of both gradients (first moment m_t) and squared gradients (second moment v_t), with bias correction for early steps."
+    },
+    {
+      id: "dl_q3",
+      question: "What is the purpose of the Reparameterization Trick in Variational Autoencoders (VAEs)?",
+      options: [
+        "To quantize latent variables into integers",
+        "To express the stochastic latent code as z = mu + sigma * epsilon (where epsilon ~ N(0, I)), allowing backpropagation through the sampling step",
+        "To replace the encoder with an adversarial discriminator",
+        "To remove KL divergence from the loss function"
+      ],
+      correctAnswer: 1,
+      explanation: "Standard random sampling is non-differentiable; reparameterization isolates stochasticity into an external noise variable epsilon, making z a deterministic function of network outputs mu and sigma."
+    },
+    {
+      id: "dl_q4",
+      question: "In Vision Transformers (ViT), how are 2D images converted into input tokens suitable for the Transformer encoder?",
+      options: [
+        "By passing images through a 50-layer CNN first",
+        "By dividing the image into non-overlapping patches (e.g. 16x16), linearly projecting them into 1D embeddings, and prepending a learnable [CLS] token",
+        "By computing Fourier transforms of pixel rows",
+        "By converting pixels to text descriptions"
+      ],
+      correctAnswer: 1,
+      explanation: "ViT splits an image of size HxW into N = (HW)/P^2 patches of size PxP, projects each patch into a vector of dimension D, adds 1D learnable position embeddings, and feeds them as token sequences."
+    }
+  ],
+  "2604RM601": [
+    {
+      id: "rm_q1",
+      question: "What constitutes a Type I Error (alpha) in statistical hypothesis testing?",
+      options: [
+        "Accepting the alternative hypothesis when it is true",
+        "Rejecting the null hypothesis (H0) when H0 is actually true (False Positive)",
+        "Failing to reject the null hypothesis when H0 is false (False Negative)",
+        "Calculating an invalid p-value"
+      ],
+      correctAnswer: 1,
+      explanation: "Type I error occurs when a researcher mistakenly detects a statistically significant effect that does not exist in reality (rejecting a true H0), bounded by alpha (commonly 0.05)."
+    },
+    {
+      id: "rm_q2",
+      question: "Why is One-Way Analysis of Variance (ANOVA) preferred over multiple independent pairwise Student's t-tests across 4 treatment groups?",
+      options: [
+        "ANOVA does not require numerical data",
+        "Multiple pairwise t-tests inflate the cumulative Type I family-wise error rate: alpha_FW = 1 - (1 - alpha)^k",
+        "ANOVA cannot calculate an F-statistic",
+        "t-tests only work on non-normal distributions"
+      ],
+      correctAnswer: 1,
+      explanation: "Testing 4 groups with pairwise t-tests requires 6 tests; at alpha=0.05 each, the chance of at least one false positive increases to ~26%. ANOVA tests all group means simultaneously."
+    },
+    {
+      id: "rm_q3",
+      question: "Under the PRISMA guidelines for Systematic Literature Reviews, what is the sequence of the PRISMA flow stages?",
+      options: [
+        "Publication -> Peer Review -> Writing -> Sampling",
+        "Identification -> Screening -> Eligibility -> Included",
+        "Hypothesis -> Coding -> Debugging -> Presentation",
+        "Scopus -> Patent -> Copyright -> Commercialization"
+      ],
+      correctAnswer: 1,
+      explanation: "PRISMA protocol systematically documents: Identification (records from database search), Screening (duplicates removed & title/abstract filter), Eligibility (full-text review), and Included studies."
+    },
+    {
+      id: "rm_q4",
+      question: "What protection is provided by an Indian Patent versus Copyright in computer science innovations?",
+      options: [
+        "Patents protect the exact text of the source code; copyright protects underlying mathematical formulas",
+        "Patents protect novel technical inventions and hardware-software implementations for 20 years; copyright protects the literal expression of source code for the author's lifetime + 60 years",
+        "Patents are granted indefinitely with zero examination",
+        "Copyright protects algorithmic ideas before they are written"
+      ],
+      correctAnswer: 1,
+      explanation: "Section 3(k) of Indian Patent Act excludes computer programmes per se; however, technical processes with hardware utility are patentable for 20 years. Copyright protects code text expression."
+    }
   ]
 };
 
@@ -215,5 +415,78 @@ export const FLASHCARD_DECKS = {
       front: "Chandy-Misra-Haas Probe Format",
       back: "Probe: (initiator_i, sender_j, receiver_k)\nDeadlock exists if probe returns back to initiating process i."
     }
+  ],
+  "2604PCC551": [
+    {
+      front: "Okapi BM25 Ranking Formula",
+      back: "RSV = sum( IDF_t * [tf*(k1+1)] / [tf + k1*(1 - b + b*(L_d/L_avg))] )\nk1 in [1.2, 2.0] governs term saturation; b = 0.75 controls length penalty."
+    },
+    {
+      front: "Skip Pointer Optimal Interval",
+      back: "Interval step = floor(sqrt(L))\nFor posting list of length L, balances number of skips and skip distances, yielding O(sqrt(L)) comparisons."
+    },
+    {
+      front: "Normalized Discounted Cumulative Gain (NDCG)",
+      back: "NDCG_p = DCG_p / IDCG_p\nwhere DCG_p = sum_{i=1}^p (2^{rel_i} - 1) / log2(i + 1)\nEvaluates multi-graded relevance with position penalty."
+    },
+    {
+      front: "PageRank Google Transition Matrix",
+      back: "G = d * M + (1 - d)/N * E\nwhere d ~ 0.85 is damping factor, guaranteeing Markov chain is irreducible and aperiodic (Perron-Frobenius)."
+    }
+  ],
+  "2604PCC552": [
+    {
+      front: "Scaled Dot-Product Self-Attention",
+      back: "Attention(Q, K, V) = softmax( (Q K^T) / sqrt(d_k) ) V\nDivision by sqrt(d_k) keeps variance ~1 to prevent vanishing softmax gradients."
+    },
+    {
+      front: "CKY Chart Parsing Complexity",
+      back: "Time: O(n^3 * |G|)\nSpace: O(n^2 * |G|)\nRequires Context-Free Grammar in Chomsky Normal Form (A -> BC or A -> a)."
+    },
+    {
+      front: "Word2Vec Negative Sampling Loss",
+      back: "L = log sigma(v'_wO^T v_wI) + sum_{k=1}^K log sigma(-v'_wk^T v_wI)\nReplaces O(|V|) softmax with K binary logistic regressions."
+    },
+    {
+      front: "Viterbi Algorithm for HMM POS Tagging",
+      back: "v_t(j) = max_i [ v_{t-1}(i) * a_{ij} ] * b_j(w_t)\nComputes highest probability tag sequence in O(T * |S|^2) dynamic programming."
+    }
+  ],
+  "2604PCC553": [
+    {
+      front: "ResNet Skip Connection Gradient",
+      back: "y = F(x) + x\ndL/dx = (dL/dy) * (dF/dx + 1)\nThe '+ 1' term ensures gradients propagate uninterrupted even when dF/dx ~ 0."
+    },
+    {
+      front: "Adam Optimizer Moments Update",
+      back: "m_t = beta1*m_{t-1} + (1-beta1)*g_t\nv_t = beta2*v_{t-1} + (1-beta2)*g_t^2\ntheta_{t+1} = theta_t - (eta / [sqrt(v_hat) + eps]) * m_hat"
+    },
+    {
+      front: "VAE Reparameterization Trick",
+      back: "z = mu(x) + sigma(x) (.) epsilon,  epsilon ~ N(0, I)\nMakes sampling deterministic and differentiable for backpropagation."
+    },
+    {
+      front: "GAN Minimax Objective",
+      back: "min_G max_D V(D, G) = E_x[log D(x)] + E_z[log(1 - D(G(z)))]\nZero-sum game between Discriminator D and Generator G."
+    }
+  ],
+  "2604RM601": [
+    {
+      front: "Type I vs Type II Errors",
+      back: "Type I (alpha): Reject H0 when H0 is true (False Positive).\nType II (beta): Fail to reject H0 when H0 is false (False Negative).\nStatistical Power = 1 - beta."
+    },
+    {
+      front: "One-Way ANOVA F-Ratio",
+      back: "F = MS_between / MS_within = [SS_between / (k - 1)] / [SS_within / (N - k)]\nTests equality of k >= 3 means without family-wise alpha inflation."
+    },
+    {
+      front: "Chi-Square Goodness-of-Fit",
+      back: "chi^2 = sum( (O_i - E_i)^2 / E_i ), df = k - 1\nTests observed categorical distribution against expected theoretical distribution."
+    },
+    {
+      front: "PRISMA Statement 4-Stage Flow",
+      back: "1. Identification (database search results)\n2. Screening (title/abstract review & deduplication)\n3. Eligibility (full-text evaluation)\n4. Included (final synthesis studies)"
+    }
   ]
 };
+

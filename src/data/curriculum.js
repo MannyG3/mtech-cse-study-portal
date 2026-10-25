@@ -861,7 +861,84 @@ export const SEMESTERS = [
         credits: 4,
         teachingScheme: { lectures: 4, tutorial: 0, practical: 0, total: 4 },
         examScheme: { tae: 20, cae: 20, ese: 60, total: 100 },
-        description: "Boolean retrieval, inverted index, vector space model, TF-IDF, evaluation metrics (MAP, NDCG), probabilistic IR, link analysis (PageRank), and neural IR."
+        prerequisite: "Data Structures, Database Management Systems",
+        description: "Boolean retrieval, inverted index, vector space model, TF-IDF, evaluation metrics (MAP, NDCG), probabilistic IR, link analysis (PageRank), and neural IR.",
+        courseOutcomes: [
+          { id: "CO1", text: "Design inverted indices and Boolean/vector retrieval models." },
+          { id: "CO2", text: "Evaluate retrieval effectiveness using precision, recall, MAP, and NDCG." },
+          { id: "CO3", text: "Implement probabilistic retrieval models, BM25, and language models." },
+          { id: "CO4", text: "Apply web crawling, link analysis (PageRank, HITS), and dense neural IR." }
+        ],
+        units: [
+          {
+            unitNo: "Unit I",
+            title: "Inverted Index & Boolean Retrieval",
+            hours: 7,
+            topics: [
+              "Information retrieval system architecture, document representation, tokenization, stop word elimination, Porter stemming.",
+              "Inverted index construction, posting lists, postings compression (gamma and delta codes), skip pointers.",
+              "Boolean queries, intersect algorithm, biword index and positional index."
+            ]
+          },
+          {
+            unitNo: "Unit II",
+            title: "Vector Space Model & Scoring",
+            hours: 7,
+            topics: [
+              "Term frequency (TF) and inverse document frequency (IDF) weighting schemes.",
+              "Vector space model, cosine similarity metric between query and documents.",
+              "Document length normalization (pivoted unique normalization), fast cosine scoring using tiering and champion lists."
+            ]
+          },
+          {
+            unitNo: "Unit III",
+            title: "Evaluation in Information Retrieval",
+            hours: 6,
+            topics: [
+              "Standard IR test collections (TREC, Cranfield), relevance judgments.",
+              "Precision, Recall, F-measure, Break-even point, Mean Average Precision (MAP).",
+              "Normalized Discounted Cumulative Gain (NDCG) for graded relevance, 11-point interpolated precision-recall curve."
+            ]
+          },
+          {
+            unitNo: "Unit IV",
+            title: "Probabilistic Retrieval & BM25",
+            hours: 7,
+            topics: [
+              "Probability Ranking Principle (PRP), Binary Independence Model (BIM).",
+              "Robertson-Spärck Jones formula, estimation of term probabilities.",
+              "Okapi BM25 ranking function, tuning parameters k1 and b for term saturation and length normalization."
+            ]
+          },
+          {
+            unitNo: "Unit V",
+            title: "Web Search & Link Analysis",
+            hours: 6,
+            topics: [
+              "Web search engine architecture, distributed crawlers, robots.txt, duplicate detection with simhash.",
+              "PageRank algorithm, Markov random walk model, teleportation factor, power iteration convergence.",
+              "Kleinberg's HITS algorithm: Hubs and Authorities mutual reinforcement."
+            ]
+          },
+          {
+            unitNo: "Unit VI",
+            title: "Modern Neural IR & Dense Retrieval",
+            hours: 7,
+            topics: [
+              "Dense retrieval vs sparse lexical matching, bi-encoders vs cross-encoders.",
+              "Dense Passage Retrieval (DPR) with BERT embeddings.",
+              "Approximate nearest neighbor (ANN) search algorithms, HNSW and FAISS vector indexing."
+            ]
+          }
+        ],
+        textBooks: [
+          "Manning, Raghavan, Schütze, 'Introduction to Information Retrieval', Cambridge University Press.",
+          "Croft, Metzler, Strohman, 'Search Engines: Information Retrieval in Practice', Pearson."
+        ],
+        referenceBooks: [
+          "Baeza-Yates & Ribeiro-Neto, 'Modern Information Retrieval', 2nd Edition, ACM Press Books.",
+          "Stefan Büttcher, Charles Clarke, 'Information Retrieval: Implementing and Evaluating Search Engines', MIT Press."
+        ]
       },
       {
         code: "2604PCC552",
@@ -871,7 +948,84 @@ export const SEMESTERS = [
         credits: 4,
         teachingScheme: { lectures: 4, tutorial: 0, practical: 0, total: 4 },
         examScheme: { tae: 20, cae: 20, ese: 60, total: 100 },
-        description: "Morphological analysis, POS tagging, CFG parsing, word embeddings (Word2Vec, GloVe), Transformers, BERT, GPT models, and language generation."
+        prerequisite: "Probability, Data Structures, Python for AI",
+        description: "Morphological analysis, POS tagging, CFG parsing, word embeddings (Word2Vec, GloVe), Transformers, BERT, GPT models, and language generation.",
+        courseOutcomes: [
+          { id: "CO1", text: "Apply morphological analysis and sequence labeling (HMM, CRF) for POS tagging." },
+          { id: "CO2", text: "Parse syntax using context-free grammars and transition-based dependency parsing." },
+          { id: "CO3", text: "Compute distributed word representations with Word2Vec, GloVe, and FastText." },
+          { id: "CO4", text: "Architect Transformer networks, multi-head self-attention, and fine-tune BERT/GPT models." }
+        ],
+        units: [
+          {
+            unitNo: "Unit I",
+            title: "Morphology & Sequence Labeling",
+            hours: 7,
+            topics: [
+              "Regular expressions, finite-state transducers, morphological parsing, subword tokenization (Byte-Pair Encoding, WordPiece).",
+              "Part-of-Speech (POS) tagging: Hidden Markov Models (HMM), emission and transition probabilities, Viterbi algorithm.",
+              "Maximum Entropy Markov Models (MEMM) and Linear-chain Conditional Random Fields (CRF)."
+            ]
+          },
+          {
+            unitNo: "Unit II",
+            title: "Syntax & Dependency Parsing",
+            hours: 7,
+            topics: [
+              "Context-Free Grammars (CFG) for English syntax, Chomsky Normal Form (CNF).",
+              "Cocke-Kasami-Younger (CKY) chart parsing algorithm.",
+              "Dependency grammars, transition-based arc-standard and arc-eager dependency parsing, graph-based parsing."
+            ]
+          },
+          {
+            unitNo: "Unit III",
+            title: "Static Word Embeddings",
+            hours: 6,
+            topics: [
+              "Distributional semantics, co-occurrence matrices, PPMI metric.",
+              "Word2Vec: Skip-gram and Continuous Bag-of-Words (CBOW) models, negative sampling, hierarchical softmax.",
+              "GloVe: Global log-bilinear matrix factorization, FastText subword n-gram embeddings."
+            ]
+          },
+          {
+            unitNo: "Unit IV",
+            title: "The Transformer Architecture",
+            hours: 7,
+            topics: [
+              "Limitations of RNNs and LSTMs for sequence modeling.",
+              "Scaled dot-product attention mechanism: Query, Key, Value projections.",
+              "Multi-head self-attention, sinusoidal positional encodings, feedforward sublayers, layer normalization, and residual connections."
+            ]
+          },
+          {
+            unitNo: "Unit V",
+            title: "Pretrained Language Models",
+            hours: 7,
+            topics: [
+              "Encoder-only architectures: BERT (Masked Language Modeling and Next Sentence Prediction), RoBERTa.",
+              "Decoder-only architectures: Generative Pretrained Transformers (GPT-1, GPT-2, GPT-3), autoregressive causal attention.",
+              "Encoder-Decoder models: T5 and BART for sequence-to-sequence translation and summarization."
+            ]
+          },
+          {
+            unitNo: "Unit VI",
+            title: "NLG & Alignment",
+            hours: 6,
+            topics: [
+              "Decoding strategies: Greedy decoding, beam search, top-k sampling, nucleus (top-p) sampling, repetition penalties.",
+              "Evaluation metrics: BLEU, ROUGE, METEOR, BERTScore.",
+              "Instruction tuning, Reinforcement Learning from Human Feedback (RLHF), Direct Preference Optimization (DPO)."
+            ]
+          }
+        ],
+        textBooks: [
+          "Daniel Jurafsky and James H. Martin, 'Speech and Language Processing', 3rd Edition Draft.",
+          "Christopher D. Manning and Hinrich Schütze, 'Foundations of Statistical Natural Language Processing', MIT Press."
+        ],
+        referenceBooks: [
+          "Jacob Eisenstein, 'Natural Language Processing', MIT Press.",
+          "Lewis Tunstall, Leandro von Werra, Thomas Wolf, 'Natural Language Processing with Transformers', O'Reilly."
+        ]
       },
       {
         code: "2604PCC553",
@@ -881,7 +1035,84 @@ export const SEMESTERS = [
         credits: 4,
         teachingScheme: { lectures: 4, tutorial: 0, practical: 0, total: 4 },
         examScheme: { tae: 20, cae: 20, ese: 60, total: 100 },
-        description: "Deep Feedforward Networks, Regularization, Optimization algorithms (Adam, RMSProp), Autoencoders, GANs, Diffusion Models, and Vision Transformers."
+        prerequisite: "Linear Algebra, Calculus, Machine Learning",
+        description: "Deep Feedforward Networks, Regularization, Optimization algorithms (Adam, RMSProp), Autoencoders, GANs, Diffusion Models, and Vision Transformers.",
+        courseOutcomes: [
+          { id: "CO1", text: "Formulate deep neural network architectures and backpropagation via computational graphs." },
+          { id: "CO2", text: "Apply modern optimization techniques (Adam, RMSProp) and regularization (Dropout, BatchNorm, LayerNorm)." },
+          { id: "CO3", text: "Design Convolutional and Recurrent neural networks for spatial and temporal representation learning." },
+          { id: "CO4", text: "Construct generative models including VAEs, GANs, and Denoising Diffusion Probabilistic Models." }
+        ],
+        units: [
+          {
+            unitNo: "Unit I",
+            title: "Deep Feedforward Networks & Backprop",
+            hours: 7,
+            topics: [
+              "Multilayer Perceptrons, activation functions (ReLU, Leaky ReLU, GELU, Swish, Softmax).",
+              "Computational graphs, automatic differentiation, backpropagation algorithm derivation using multivariate chain rule.",
+              "Vanishing and exploding gradient phenomena, Xavier/Glorot and He/Kaiming weight initializations."
+            ]
+          },
+          {
+            unitNo: "Unit II",
+            title: "Optimization & Regularization",
+            hours: 7,
+            topics: [
+              "Stochastic Gradient Descent (SGD) with momentum, Nesterov accelerated gradient.",
+              "Adaptive learning rate algorithms: AdaGrad, RMSProp, Adam, AdamW with weight decay.",
+              "Regularization paradigms: L1/L2 weight decay, Dropout (inverted dropout), Batch Normalization, Layer Normalization, early stopping."
+            ]
+          },
+          {
+            unitNo: "Unit III",
+            title: "Convolutional Neural Networks",
+            hours: 7,
+            topics: [
+              "Convolution operator in 2D, kernel stride, padding modes (valid, same), dilation rates.",
+              "Receptive field calculation, pooling layers (max pooling, global average pooling).",
+              "Landmark architectures: AlexNet, VGG, ResNet skip connections and identity mapping, ConvNeXt."
+            ]
+          },
+          {
+            unitNo: "Unit IV",
+            title: "Recurrent & Sequence Architectures",
+            hours: 6,
+            topics: [
+              "Recurrent Neural Networks (RNN), backpropagation through time (BPTT).",
+              "Long Short-Term Memory (LSTM): Input, Forget, Output gates, cell state preservation.",
+              "Gated Recurrent Unit (GRU): Reset and Update gates. Sequence-to-Sequence encoder-decoder with Bahdanau attention."
+            ]
+          },
+          {
+            unitNo: "Unit V",
+            title: "Generative Adversarial Networks & VAEs",
+            hours: 7,
+            topics: [
+              "Generative modeling taxonomy: explicit vs implicit density models.",
+              "Variational Autoencoders (VAE): Evidence Lower Bound (ELBO), reparameterization trick, latent Gaussian prior.",
+              "Generative Adversarial Networks (GAN): Minimax objective, discriminator and generator dynamics, Mode collapse, Wasserstein GAN with gradient penalty."
+            ]
+          },
+          {
+            unitNo: "Unit VI",
+            title: "Diffusion Models & Vision Transformers",
+            hours: 6,
+            topics: [
+              "Denoising Diffusion Probabilistic Models (DDPM): Forward Gaussian noise process, reverse denoising U-Net.",
+              "Score-based generative models and classifier-free guidance for controllable generation.",
+              "Vision Transformers (ViT): Non-overlapping patch projection, learnable [CLS] token, self-attention across image tokens."
+            ]
+          }
+        ],
+        textBooks: [
+          "Ian Goodfellow, Yoshua Bengio, Aaron Courville, 'Deep Learning', MIT Press.",
+          "Aston Zhang, Zachary C. Lipton, Mu Li, Alexander J. Smola, 'Dive into Deep Learning', Cambridge University Press."
+        ],
+        referenceBooks: [
+          "Aurélien Géron, 'Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow', 3rd Edition, O'Reilly.",
+          "Charu C. Aggarwal, 'Neural Networks and Deep Learning: A Textbook', Springer."
+        ]
       },
       {
         code: "2604PCC576",
@@ -950,7 +1181,84 @@ export const SEMESTERS = [
         credits: 4,
         teachingScheme: { lectures: 4, tutorial: 0, practical: 0, total: 4 },
         examScheme: { cae: 40, ese: 60, total: 100 },
-        description: "Research design, formulation of research hypotheses, data collection, statistical hypothesis testing (t-test, ANOVA, Chi-square), research ethics, and paper publishing."
+        prerequisite: "Probability and Statistics",
+        description: "Research design, formulation of research hypotheses, data collection, statistical hypothesis testing (t-test, ANOVA, Chi-square), research ethics, and paper publishing.",
+        courseOutcomes: [
+          { id: "CO1", text: "Formulate research problems, hypotheses, and rigorous experimental setups." },
+          { id: "CO2", text: "Apply parametric and non-parametric statistical hypothesis testing." },
+          { id: "CO3", text: "Conduct systematic literature reviews following PRISMA standards." },
+          { id: "CO4", text: "Adhere to research ethics, prevent plagiarism, and draft high-impact papers." }
+        ],
+        units: [
+          {
+            unitNo: "Unit I",
+            title: "Research Formulation & Design",
+            hours: 7,
+            topics: [
+              "Nature and objectives of engineering research, identifying literature gaps, problem formulation.",
+              "Hypothesis framing: directional vs non-directional, null hypothesis (H0) and alternative hypothesis (H1).",
+              "Research design: exploratory, descriptive, and experimental research paradigms."
+            ]
+          },
+          {
+            unitNo: "Unit II",
+            title: "Data Collection & Sampling Methods",
+            hours: 6,
+            topics: [
+              "Primary vs secondary data, quantitative and qualitative data attributes.",
+              "Probability sampling: simple random, stratified, cluster sampling. Non-probability sampling techniques.",
+              "Measurement scales: Nominal, Ordinal, Interval, Ratio; validity and reliability metrics (Cronbach's alpha)."
+            ]
+          },
+          {
+            unitNo: "Unit III",
+            title: "Statistical Hypothesis Testing",
+            hours: 8,
+            topics: [
+              "Type I and Type II errors, level of significance (alpha), statistical power (1 - beta), p-value interpretation.",
+              "Parametric tests: Student's t-test (independent and paired), Z-test, One-way and Two-way ANOVA (F-test).",
+              "Non-parametric tests: Chi-Square goodness-of-fit, Mann-Whitney U test, Wilcoxon signed-rank test."
+            ]
+          },
+          {
+            unitNo: "Unit IV",
+            title: "Systematic Literature Review",
+            hours: 6,
+            topics: [
+              "Methodology of Systematic Literature Reviews (SLR) and PRISMA framework.",
+              "Search protocol design, Boolean query crafting for Scopus, IEEE Xplore, ACM Digital Library, Google Scholar.",
+              "Bibliometric analysis, citation network mapping, and synthesis of findings."
+            ]
+          },
+          {
+            unitNo: "Unit V",
+            title: "Research Ethics & Intellectual Property",
+            hours: 6,
+            topics: [
+              "Academic integrity, forms of plagiarism (verbatim, mosaic, self-plagiarism), plagiarism detection tools.",
+              "Peer review process: single-blind, double-blind, open peer review, handling reviewer rebuttals.",
+              "Intellectual Property Rights (IPR): Patents, patent searching, copyrights, trademarks, software licensing (GPL, MIT, Apache)."
+            ]
+          },
+          {
+            unitNo: "Unit VI",
+            title: "Technical Writing & Publication",
+            hours: 7,
+            topics: [
+              "Structure of an IEEE/ACM paper: Title, Abstract, Introduction, Related Work, Proposed Architecture, Experimental Setup, Results, Discussion, Conclusion.",
+              "LaTeX document authoring: bibtex citations, math formatting, vector graphics, tables.",
+              "Journal indexing: SCI, SCIE, Scopus, Impact Factor, h-index, i10-index, avoiding predatory journals."
+            ]
+          }
+        ],
+        textBooks: [
+          "C. R. Kothari, Gaurav Garg, 'Research Methodology: Methods and Techniques', 4th Edition, New Age International.",
+          "Wayne C. Booth, Gregory G. Colomb, 'The Craft of Research', University of Chicago Press."
+        ],
+        referenceBooks: [
+          "Ranjit Kumar, 'Research Methodology: A Step-by-Step Guide for Beginners', 5th Edition, SAGE Publications.",
+          "John W. Creswell, J. David Creswell, 'Research Design: Qualitative, Quantitative, and Mixed Methods Approaches', SAGE."
+        ]
       },
       {
         code: "2604ELCSI602",

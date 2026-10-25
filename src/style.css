@@ -185,6 +185,10 @@ button, input, select, textarea {
   padding: 0 1.25rem;
 }
 
+.mobile-nav-toggle {
+  display: none;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -1156,7 +1160,48 @@ button, input, select, textarea {
   }
 }
 
+.flashcard-3d {
+  perspective: 900px;
+}
+
+.flashcard-inner {
+  position: relative;
+  min-height: 180px;
+  transform-style: preserve-3d;
+  transition: transform 0.45s ease;
+  cursor: pointer;
+}
+
+.flashcard-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.flashcard-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.flashcard-face.back {
+  transform: rotateY(180deg);
+}
+
 @media (max-width: 768px) {
+  .mobile-nav-toggle {
+    display: inline-flex;
+  }
+  .search-command-btn span,
+  .search-command-btn .kbd-shortcut {
+    display: none;
+  }
   .workspace-container {
     grid-template-columns: 1fr;
   }

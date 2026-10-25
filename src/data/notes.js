@@ -890,5 +890,340 @@ $$|\\psi\\rangle = \\cos\\left(\\frac{\\theta}{2}\\right) |0\\rangle + e^{i\\phi
         ]
       }
     ]
+  },
+  "2604PCC551": {
+    courseCode: "2604PCC551",
+    courseTitle: "Information Retrieval",
+    overview: "Algorithmic foundation of search engines: inverted index architecture, vector space model, TF-IDF scoring, evaluation metrics (MAP, NDCG), probabilistic IR, Okapi BM25, PageRank link analysis, and dense neural passage retrieval.",
+    units: [
+      {
+        unitNo: "Unit I",
+        title: "Inverted Index & Boolean Retrieval",
+        keyConcepts: [
+          {
+            heading: "Inverted Index Structure & Posting Lists",
+            content: `The primary data structure of text search engines. It maps every unique vocabulary term to a sorted postings list containing document IDs and term positions.
+- **Posting Compression**: Gamma and Delta encoding compress document ID gaps (d-gaps) reducing memory footprint by up to 70%.
+- **Skip Pointers**: Placed at $\\sqrt{L}$ intervals along a postings list of length $L$. Allows intersection of two lists in $O(L_1 + L_2)$ time to skip non-matching segments when one posting is far ahead.`,
+            formula: "\\text{Skip Step} = \\lfloor\\sqrt{L}\\rfloor"
+          },
+          {
+            heading: "Boolean Retrieval Model",
+            content: `Queries formulated with Boolean operators: AND, OR, NOT.
+- Evaluated via list merging algorithms.
+- **AND Intersection**: Advance the pointer of the smaller document ID.
+- **Biword & Positional Index**: Supports exact phrase search ("autonomous vehicle") by recording word offset offsets $[docID: pos_1, pos_2, \\dots]$.`
+          }
+        ],
+        examQuestions: [
+          { marks: 2, q: "Define inverted index and explain the role of posting lists." },
+          { marks: 5, q: "Explain how skip pointers improve posting list intersection time complexity." },
+          { marks: 10, q: "Derive the intersect algorithm for two sorted postings lists and show how positional indices resolve phrase queries." }
+        ]
+      },
+      {
+        unitNo: "Unit II",
+        title: "Vector Space Model & Scoring",
+        keyConcepts: [
+          {
+            heading: "TF-IDF Weighting & Cosine Similarity",
+            content: `Documents and queries are mapped into high-dimensional vector space where each dimension corresponds to a vocabulary term.
+- **Term Frequency ($tf$)**: Measures term saliency within document $d$. Sublinear scaling: $wf_{t,d} = 1 + \\log(tf_{t,d})$ if $tf_{t,d} > 0$.
+- **Inverse Document Frequency ($idf$)**: Penalizes widespread words across corpus of $N$ documents: $idf_t = \\log\\left(\\frac{N}{df_t}\\right)$.
+- **Cosine Score**: Normalized dot product measuring angular similarity independent of document length:
+  $$\\text{Score}(q, d) = \\frac{\\sum_{t \\in q \\cap d} w_{t,q} \\cdot w_{t,d}}{\\sqrt{\\sum_{t \\in q} w_{t,q}^2} \\cdot \\sqrt{\\sum_{t \\in d} w_{t,d}^2}}$$`,
+            formula: "w_{t,d} = (1 + \\log tf_{t,d}) \\cdot \\log(N / df_t)"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain why sublinear TF scaling and IDF normalization improve ranking quality." },
+          { marks: 10, q: "Calculate the Cosine Similarity between a query and two documents given their term frequencies and corpus collection frequencies." }
+        ]
+      },
+      {
+        unitNo: "Unit III",
+        title: "Evaluation in Information Retrieval",
+        keyConcepts: [
+          {
+            heading: "Precision, Recall, MAP, and NDCG",
+            content: `- **Precision ($P$)**: Fraction of retrieved documents that are relevant: $P = \\frac{|Rel \\cap Ret|}{|Ret|}$.
+- **Recall ($R$)**: Fraction of relevant documents retrieved: $R = \\frac{|Rel \\cap Ret|}{|Rel|}$.
+- **Mean Average Precision (MAP)**: Macro-average of Average Precision (AveP) across set of queries $Q$:
+  $$MAP = \\frac{1}{|Q|} \\sum_{j=1}^{|Q|} \\left( \\frac{1}{m_j} \\sum_{k=1}^{n_j} P(R_k) \\cdot rel(k) \\right)$$
+- **Normalized Discounted Cumulative Gain (NDCG)**: Evaluates ranked results with graded relevance scores ($rel_i \\in \\{0, 1, 2, 3\\}$):
+  $$DCG_p = \\sum_{i=1}^p \\frac{2^{rel_i} - 1}{\\log_2(i + 1)}, \\quad NDCG_p = \\frac{DCG_p}{IDCG_p}$$`,
+            formula: "NDCG_p = \\frac{DCG_p}{IDCG_p}"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Differentiate between MAP (Mean Average Precision) and NDCG." },
+          { marks: 10, q: "Compute DCG, IDCG, and NDCG at rank 5 for a ranked list with relevance judgements [3, 2, 0, 1, 2]." }
+        ]
+      },
+      {
+        unitNo: "Unit IV",
+        title: "Probabilistic Retrieval & BM25",
+        keyConcepts: [
+          {
+            heading: "Okapi BM25 Ranking Function",
+            content: `The gold-standard non-neural lexical ranking formula rooted in the Probabilistic Ranking Principle (PRP):
+$$RSV_{BM25} = \\sum_{t \\in q} \\log\\left(\\frac{N - df_t + 0.5}{df_t + 0.5}\\right) \\cdot \\frac{tf_{t,d} \\cdot (k_1 + 1)}{tf_{t,d} + k_1 \\cdot \\left(1 - b + b \\cdot \\frac{L_d}{L_{avg}}\\right)}$$
+- **Parameter $k_1$**: Controls term frequency saturation (typically $k_1 \\in [1.2, 2.0]$).
+- **Parameter $b$**: Controls document length normalization penalty ($b = 0.75$).`,
+            formula: "RSV_{BM25} = \\sum_{t \\in q} IDF_t \\cdot \\frac{tf_{t,d} (k_1 + 1)}{tf_{t,d} + k_1 (1 - b + b \\frac{L_d}{L_{avg}})}"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain the role of hyperparameters k1 and b in the Okapi BM25 ranking function." },
+          { marks: 10, q: "Derive how Okapi BM25 prevents very long documents from dominating short focused documents." }
+        ]
+      },
+      {
+        unitNo: "Unit V",
+        title: "Web Search & Link Analysis",
+        keyConcepts: [
+          {
+            heading: "PageRank Markov Random Walk",
+            content: `Models a web surfer randomly traversing hyperlinks with damping factor $d \\approx 0.85$ (teleportation probability $1 - d$):
+$$PR(u) = \\frac{1 - d}{N} + d \\sum_{v \\in B_u} \\frac{PR(v)}{L(v)}$$
+- Solved via **Power Iteration Method** on the transition probability Google matrix $G = d M + \\frac{1 - d}{N} E$.
+- Converges to stationary probability distribution guaranteed by Perron-Frobenius theorem on irreducible, aperiodic Markov chains.`,
+            formula: "PR(u) = \\frac{1-d}{N} + d \\sum_{v \\in B_u} \\frac{PR(v)}{L(v)}"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain the dead-end and spider-trap problems in PageRank and how the damping factor resolves them." },
+          { marks: 10, q: "Apply two iterations of the Power Iteration method to compute PageRank for a 3-page web graph." }
+        ]
+      }
+    ]
+  },
+  "2604PCC552": {
+    courseCode: "2604PCC552",
+    courseTitle: "Natural Language Processing",
+    overview: "Statistical and deep learning foundations for computational linguistics: subword tokenization, sequence labeling (HMM, CRF), syntax parsing, Word2Vec, Transformer architecture, self-attention, and LLM fine-tuning.",
+    units: [
+      {
+        unitNo: "Unit I",
+        title: "Morphology & Sequence Labeling",
+        keyConcepts: [
+          {
+            heading: "Subword Tokenization (BPE) & HMM POS Tagging",
+            content: `- **Byte-Pair Encoding (BPE)**: Iteratively merges the most frequent pair of adjacent bytes/tokens into a single token, solving out-of-vocabulary (OOV) issues in LLMs.
+- **HMM POS Tagging**: Models sequence labeling with hidden states $t_i$ (tags) emitting observable words $w_i$.
+  - Best tag sequence found using **Viterbi Algorithm** in $O(T \\cdot |S|^2)$ dynamic programming:
+    $$v_t(j) = \\max_{i=1}^N \\left( v_{t-1}(i) \\cdot a_{ij} \\right) \\cdot b_j(w_t)$$`,
+            formula: "v_t(j) = \\max_i [v_{t-1}(i) \\cdot a_{ij}] \\cdot b_j(w_t)"
+          }
+        ],
+        examQuestions: [
+          { marks: 2, q: "What is Byte-Pair Encoding and why is it preferred over whitespace tokenization?" },
+          { marks: 5, q: "Explain the emission and transition matrices in HMM Part-of-Speech tagging." }
+        ]
+      },
+      {
+        unitNo: "Unit II",
+        title: "Syntax & Parsing",
+        keyConcepts: [
+          {
+            heading: "CKY Algorithm for CFG Parsing",
+            content: `Cocke-Kasami-Younger (CKY) bottom-up chart parser requires grammars in **Chomsky Normal Form (CNF)**: $A \\to BC$ or $A \\to a$.
+- Builds a triangular chart $P[i, j, A]$ recording whether nonterminal $A$ derives substring $w_i \\dots w_j$.
+- Dynamic programming recurrence:
+  $$P[i, j, A] = \\bigvee_{k=i}^{j-1} \\bigvee_{A \\to B C} \\left( P[i, k, B] \\wedge P[k+1, j, C] \\right)$$
+- Complexity: $O(n^3 \\cdot |G|)$ where $n$ is sentence length and $|G|$ is rule count.`,
+            formula: "P[i, j, A] = \\exists k, A \\to BC: P[i,k,B] \\wedge P[k+1,j,C]"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Convert a given Context-Free Grammar into Chomsky Normal Form (CNF)." },
+          { marks: 10, q: "Trace the CKY algorithm table to parse the sentence 'The student solved the problem'." }
+        ]
+      },
+      {
+        unitNo: "Unit III",
+        title: "Word Embeddings",
+        keyConcepts: [
+          {
+            heading: "Word2Vec Skip-gram with Negative Sampling",
+            content: `Learns dense distributed word vectors by predicting surrounding context words $w_O$ given center word $w_I$.
+- Softmax denominator over entire vocabulary $V$ is computationally prohibitive ($O(|V|)$).
+- **Negative Sampling (SGNS)** reformulates task as binary logistic regression: distinguish true context $(w_I, w_O)$ from $K$ noise words $w_k \\sim P_n(w)$:
+  $$\\mathcal{L}_{SGNS} = \\log \\sigma(v'_{w_O}{}^\\top v_{w_I}) + \\sum_{k=1}^K \\mathbb{E}_{w_k \\sim P_n} \\left[ \\log \\sigma(-v'_{w_k}{}^\\top v_{w_I}) \\right]$$`,
+            formula: "\\mathcal{L} = \\log \\sigma({v'_{w_O}}^T v_{w_I}) + \\sum_{k=1}^K \\log \\sigma(-{v'_{w_k}}^T v_{w_I})"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain the Skip-gram and CBOW architectures in Word2Vec." },
+          { marks: 10, q: "Derive the gradient of Word2Vec with Negative Sampling with respect to center word vector." }
+        ]
+      },
+      {
+        unitNo: "Unit IV",
+        title: "The Transformer Architecture",
+        keyConcepts: [
+          {
+            heading: "Scaled Dot-Product & Multi-Head Self-Attention",
+            content: `The Transformer replaces recurrent connections with pairwise self-attention across all tokens in parallel:
+$$\\text{Attention}(Q, K, V) = \\text{softmax}\\left( \\frac{Q K^\\top}{\\sqrt{d_k}} \\right) V$$
+- **Scaling by $\\sqrt{d_k}$**: Prevents large dot products from pushing softmax into regions with vanishingly small gradients.
+- **Multi-Head Attention**: Allows the model to jointly attend to information from different representation subspaces at different positions:
+  $$\\text{MultiHead}(Q, K, V) = \\text{Concat}(\\text{head}_1, \\dots, \\text{head}_h) W^O, \\quad \\text{where } \\text{head}_i = \\text{Attention}(Q W_i^Q, K W_i^K, V W_i^V)$$`,
+            formula: "\\text{Attention}(Q,K,V) = \\text{softmax}\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Why is the dot-product scaled by sqrt(d_k) in Transformer self-attention?" },
+          { marks: 10, q: "Explain the Transformer encoder-decoder architecture highlighting positional encoding, LayerNorm, and causal masking." }
+        ]
+      }
+    ]
+  },
+  "2604PCC553": {
+    courseCode: "2604PCC553",
+    courseTitle: "Deep Learning",
+    overview: "Modern deep neural networks: automatic differentiation, optimization algorithms (Adam, RMSProp), convolutional architectures (ResNet), sequential models (LSTM), generative modeling (GANs, VAEs, Diffusion), and Vision Transformers.",
+    units: [
+      {
+        unitNo: "Unit I",
+        title: "Deep Feedforward Networks & Backprop",
+        keyConcepts: [
+          {
+            heading: "Computational Graphs & Multivariate Chain Rule",
+            content: `Backpropagation computes partial derivatives of scalar loss $\\mathcal{L}$ with respect to all network parameters $W^{[l]}, b^{[l]}$ via reverse accumulation:
+$$\\delta^{[l]} = \\frac{\\partial \\mathcal{L}}{\\partial z^{[l]}} = \\left( (W^{[l+1]})^\\top \\delta^{[l+1]} \\right) \\odot \\sigma'(z^{[l]})$$
+$$\\frac{\\partial \\mathcal{L}}{\\partial W^{[l]}} = \\delta^{[l]} (a^{[l-1]})^\\top, \\quad \\frac{\\partial \\mathcal{L}}{\\partial b^{[l]}} = \\delta^{[l]}$$
+- **Activation Functions**: ReLU ($f(x) = \\max(0, x)$) mitigates vanishing gradient. GELU ($x \\Phi(x)$) used in GPT and BERT.`,
+            formula: "\\delta^{[l]} = ((W^{[l+1]})^T \\delta^{[l+1]}) \\odot \\sigma'(z^{[l]})"
+          }
+        ],
+        examQuestions: [
+          { marks: 2, q: "Explain the dying ReLU problem and how Leaky ReLU addresses it." },
+          { marks: 10, q: "Derive the backpropagation equations for a 2-layer MLP with cross-entropy loss." }
+        ]
+      },
+      {
+        unitNo: "Unit II",
+        title: "Optimization & Regularization",
+        keyConcepts: [
+          {
+            heading: "Adam Optimizer & Batch Normalization",
+            content: `- **Adam (Adaptive Moment Estimation)**: Combines exponential moving average of first moment (momentum) and second raw moment (RMSProp):
+  $$m_t = \\beta_1 m_{t-1} + (1 - \\beta_1) g_t, \\quad v_t = \\beta_2 v_{t-1} + (1 - \\beta_2) g_t^2$$
+  Bias-corrected moments: $\\hat{m}_t = \\frac{m_t}{1 - \\beta_1^t}, \\hat{v}_t = \\frac{v_t}{1 - \\beta_2^t}$. Parameter update: $\\theta_{t+1} = \\theta_t - \\frac{\\eta}{\\sqrt{\\hat{v}_t} + \\epsilon} \\hat{m}_t$.
+- **Batch Normalization**: Normalizes layer inputs across mini-batch to zero mean and unit variance, smoothing the optimization landscape:
+  $$\\hat{x}_i = \\frac{x_i - \\mu_B}{\\sqrt{\\sigma_B^2 + \\epsilon}}, \\quad y_i = \\gamma \\hat{x}_i + \\beta$$`,
+            formula: "\\theta_{t+1} = \\theta_t - \\frac{\\eta}{\\sqrt{\\hat{v}_t} + \\epsilon} \\hat{m}_t"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain why Adam requires bias correction during the initial training iterations." },
+          { marks: 5, q: "How does Batch Normalization reduce internal covariate shift during training?" }
+        ]
+      },
+      {
+        unitNo: "Unit III",
+        title: "Convolutional Neural Networks",
+        keyConcepts: [
+          {
+            heading: "ResNet Skip Connections & Identity Mapping",
+            content: `Deep feedforward networks suffer from degradation: training error saturates and then worsens due to vanishing gradients during backprop.
+- **Residual Block**: Reformulates mapping as $\\mathcal{H}(x) = \\mathcal{F}(x) + x$, where layers fit residual $\\mathcal{F}(x) = \\mathcal{H}(x) - x$.
+- If identity is optimal, weights are easily driven to zero ($\\\\mathcal{F}(x) \\to 0$).
+- Gradient flows directly through shortcut: $\\frac{\\partial \\mathcal{L}}{\\partial x} = \\frac{\\partial \\mathcal{L}}{\\partial \\mathcal{H}} \\left( \\frac{\\partial \\mathcal{F}}{\\partial x} + 1 \\right)$, ensuring gradient is never zero.`,
+            formula: "\\mathcal{H}(x) = \\mathcal{F}(x, \\{W_i\\}) + x"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain the degradation problem in deep networks and how ResNet residual connections solve it." },
+          { marks: 10, q: "Compute the output dimensions and parameter count for a CNN layer given input size, filter count, kernel size, padding, and stride." }
+        ]
+      },
+      {
+        unitNo: "Unit V",
+        title: "Generative Models (GANs & Diffusion)",
+        keyConcepts: [
+          {
+            heading: "GANs Minimax & Diffusion Forward/Reverse Processes",
+            content: `- **Generative Adversarial Networks (GAN)**: Two-player zero-sum game between Generator $G$ and Discriminator $D$:
+  $$\\min_G \\max_D V(D, G) = \\mathbb{E}_{x \\sim p_{data}}[\\log D(x)] + \\mathbb{E}_{z \\sim p_z}[\\log(1 - D(G(z)))]$$
+- **Denoising Diffusion Probabilistic Models (DDPM)**:
+  - Forward process $q(x_t | x_{t-1})$ adds Gaussian noise in $T$ steps according to schedule $\\beta_1, \\dots, \\beta_T$.
+  - Reverse process $p_\\theta(x_{t-1} | x_t)$ trains a U-Net neural network to predict and remove noise $\\epsilon_\\theta(x_t, t)$.`,
+            formula: "\\min_G \\max_D V(D, G) = \\mathbb{E}_{x}[\\log D(x)] + \\mathbb{E}_{z}[\\log(1 - D(G(z)))]"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain the mode collapse problem in Generative Adversarial Networks." },
+          { marks: 10, q: "Compare Generative Adversarial Networks (GANs), Variational Autoencoders (VAEs), and Diffusion Models in terms of training stability and sample quality." }
+        ]
+      }
+    ]
+  },
+  "2604RM601": {
+    courseCode: "2604RM601",
+    courseTitle: "Research Methodology",
+    overview: "Scientific research design, statistical hypothesis testing (t-test, ANOVA, Chi-Square), systematic literature reviews (PRISMA), academic integrity, plagiarism avoidance, IPR patents, and LaTeX paper publication.",
+    units: [
+      {
+        unitNo: "Unit I",
+        title: "Research Formulation & Design",
+        keyConcepts: [
+          {
+            heading: "Hypothesis Formulation & Research Process",
+            content: `- **Research Process**: Problem identification $\\to$ Literature review $\\to$ Hypothesis framing $\\to$ Experimental design $\\to$ Data collection $\\to$ Hypothesis testing $\\to$ Interpretation $\\to$ Reporting.
+- **Null Hypothesis ($H_0$)**: States that there is no significant difference or effect ($H_0: \\mu_1 = \\mu_2$).
+- **Alternative Hypothesis ($H_1$)**: Contradicts $H_0$; represents researcher's predicted finding.
+- **Decision Errors**:
+  - **Type I Error ($\\alpha$)**: Rejecting true null hypothesis (False Positive). Significance level $\\alpha$ is usually set to $0.05$ or $0.01$.
+  - **Type II Error ($\\beta$)**: Failing to reject false null hypothesis (False Negative). Statistical Power $= 1 - \\beta$.`,
+            formula: "\\text{Power} = 1 - \\beta = P(\\text{Reject } H_0 \\mid H_0 \\text{ is false})"
+          }
+        ],
+        examQuestions: [
+          { marks: 2, q: "Define Type I and Type II errors in hypothesis testing." },
+          { marks: 5, q: "Explain the steps involved in engineering research problem formulation." }
+        ]
+      },
+      {
+        unitNo: "Unit III",
+        title: "Statistical Hypothesis Testing",
+        keyConcepts: [
+          {
+            heading: "Student's t-test, ANOVA & Chi-Square Test",
+            content: `- **Two-sample Independent t-test**: Compares means of two normally distributed groups:
+  $$t = \\frac{\\bar{x}_1 - \\bar{x}_2}{s_p \\sqrt{\\frac{1}{n_1} + \\frac{1}{n_2}}}, \\quad s_p^2 = \\frac{(n_1 - 1)s_1^2 + (n_2 - 1)s_2^2}{n_1 + n_2 - 2}$$
+- **One-Way ANOVA (F-test)**: Compares means across $k \\ge 3$ groups to avoid inflated Type I error from multiple pairwise t-tests:
+  $$F = \\frac{MS_{between}}{MS_{within}} = \\frac{SS_{between} / (k - 1)}{SS_{within} / (N - k)}$$
+- **Chi-Square ($\\chi^2$) Goodness-of-Fit**: Tests categorical distribution against expected frequencies:
+  $$\\chi^2 = \\sum_{i=1}^k \\frac{(O_i - E_i)^2}{E_i}, \\quad df = k - 1$$`,
+            formula: "F = \\frac{MS_{between}}{MS_{within}}, \\quad \\chi^2 = \\sum \\frac{(O - E)^2}{E}"
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Explain when to use ANOVA over multiple independent t-tests." },
+          { marks: 10, q: "Conduct a Chi-Square test at alpha = 0.05 to verify if student algorithm preferences follow an equal distribution." }
+        ]
+      },
+      {
+        unitNo: "Unit V",
+        title: "Research Ethics & Intellectual Property",
+        keyConcepts: [
+          {
+            heading: "Plagiarism, Peer Review & Patenting",
+            content: `- **Forms of Plagiarism**: Direct verbatim copying, mosaic/patchwork plagiarism, paraphrasing without citation, and self-plagiarism (duplicate publication).
+- **Similarity Index**: Assessed via tools (Turnitin, iThenticate). UGC guidelines define level-based penalties for similarity $> 10\\%$.
+- **Intellectual Property Rights (IPR)**:
+  - **Patents**: Exclusive rights granted for an invention (novel, non-obvious, industrially applicable) for 20 years.
+  - **Copyright**: Protects expression of ideas (literary, artistic, software source code).
+  - **Trade Secret**: Proprietary algorithmic code or business data maintained confidentially.`
+          }
+        ],
+        examQuestions: [
+          { marks: 5, q: "Differentiate between patentable inventions and copyrightable software under Indian IPR laws." },
+          { marks: 5, q: "Explain the four levels of plagiarism severity under university academic integrity regulations." }
+        ]
+      }
+    ]
   }
 };
