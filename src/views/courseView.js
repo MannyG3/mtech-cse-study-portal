@@ -27,7 +27,7 @@ export function renderCourseView(course, notesData, state) {
       <p class="course-desc-paragraph">${course.description || 'Curriculum framework conforming to autonomous NEP-2020 guidelines.'}</p>
 
       <!-- Action Row -->
-      <div style="display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <div class="course-actions-row">
         ${isLab ? `
           <button class="btn-primary-action" id="openLabDirectBtn" type="button">
             <i data-lucide="play" style="width:14px; height:14px;"></i>

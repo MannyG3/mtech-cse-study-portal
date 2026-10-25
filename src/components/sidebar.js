@@ -6,7 +6,19 @@ export function renderSidebar(state, activeSem) {
   const electiveCourses = activeSem.courses.filter(c => c.type !== 'PCC');
 
   return `
+    <div class="mobile-nav-backdrop ${state.mobileSidebarOpen ? 'active' : ''}" id="mobileNavBackdrop"></div>
     <aside class="sidebar-left ${state.mobileSidebarOpen ? 'mobile-open' : ''}" id="leftSidebar">
+      <!-- Mobile-only Sidebar Header -->
+      <div class="sidebar-mobile-header">
+        <div class="sidebar-mobile-title">
+          <div class="header-logo-icon" style="width:22px; height:22px; font-size:0.75rem;">M</div>
+          <span>Curriculum Menu</span>
+        </div>
+        <button class="btn-icon-square mobile-sidebar-close" id="closeMobileNavBtn" type="button" aria-label="Close navigation menu" title="Close Menu">
+          <i data-lucide="x" style="width:16px; height:16px;"></i>
+        </button>
+      </div>
+
       <!-- Main Navigation Links -->
       <nav class="sidebar-main-nav">
         <button class="nav-link-btn ${state.activeView === 'dashboard' ? 'active' : ''}" data-nav-view="dashboard" type="button">

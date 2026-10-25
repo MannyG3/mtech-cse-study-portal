@@ -120,9 +120,14 @@ function onAppClick(e) {
     closeModal();
     return;
   }
+  if (e.target.id === 'mobileNavBackdrop' || e.target.id === 'closeMobileNavBtn') {
+    state.mobileSidebarOpen = false;
+    updateSidebar();
+    return;
+  }
 
   const t = e.target.closest([
-    '#toggleMobileNavBtn', '#brandHomeNav', '#resumeStudyingBtn', '#dashOpenPlannerBtn',
+    '#toggleMobileNavBtn', '#closeMobileNavBtn', '#mobileNavBackdrop', '#brandHomeNav', '#resumeStudyingBtn', '#dashOpenPlannerBtn',
     '#dashOpenResearchBtn', '#dashAddTaskModalBtn', '#openNewTaskModalBtn', '#themeSwitchBtn',
     '#toggleRightPanelBtn', '#timerWidgetBtn', '#openCommandPaletteBtn', '#openAiDrawerTrigger',
     '#closeAiDrawerBtn', '#aiDrawerOverlayBackdrop', '#jumpUnitOneBtn', '#openLabDirectBtn',
@@ -150,6 +155,11 @@ function onAppClick(e) {
 
   if (id === 'toggleMobileNavBtn') {
     state.mobileSidebarOpen = !state.mobileSidebarOpen;
+    updateSidebar();
+    return;
+  }
+  if (id === 'closeMobileNavBtn' || id === 'mobileNavBackdrop') {
+    state.mobileSidebarOpen = false;
     updateSidebar();
     return;
   }
@@ -417,18 +427,24 @@ function onAppClick(e) {
     return;
   }
   if (id === 'openQuizShortcut') {
+    state.mobileSidebarOpen = false;
+    updateSidebar();
     state.activeModal = 'quiz';
     state.modalData = { quizIndex: 0, userAnswers: {} };
     updateModalLayer();
     return;
   }
   if (id === 'openFlashShortcut') {
+    state.mobileSidebarOpen = false;
+    updateSidebar();
     state.activeModal = 'flashcards';
     state.modalData = { flashIndex: 0, isFlipped: false };
     updateModalLayer();
     return;
   }
   if (id === 'openCalcShortcut') {
+    state.mobileSidebarOpen = false;
+    updateSidebar();
     state.activeModal = 'calc';
     updateModalLayer();
     return;
