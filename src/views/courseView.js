@@ -51,16 +51,16 @@ export function renderCourseView(course, notesData, state) {
 
       <!-- Compact Exam Evaluation Row -->
       <div class="exam-eval-row">
-        <div style="display:flex; align-items:baseline; justify-content:space-between; font-size:var(--text-xs); color:var(--text-dim); font-weight:600; text-transform:uppercase;">
+        <div class="exam-eval-header">
           <span>Evaluation Scheme (Autonomous 2026 Pattern)</span>
-          <span style="color:var(--text-main);">Total: 100 Marks</span>
+          <span class="exam-eval-total">Total: 100 Marks</span>
         </div>
         <div class="exam-bar-container">
           <div style="width:20%; background:var(--seg-tae);" title="TAE: 20%"></div>
           <div style="width:20%; background:var(--seg-cae);" title="CAE: 20%"></div>
           <div style="width:60%; background:var(--seg-ese);" title="ESE: 60%"></div>
         </div>
-        <div style="display:flex; gap:1.5rem; font-size:var(--text-xs); color:var(--text-muted); flex-wrap:wrap;">
+        <div class="exam-eval-breakdown">
           <div><span style="color:var(--text-dim);">TAE (Internal):</span> <strong>${course.examScheme?.tae ?? 20} Marks</strong> (20%)</div>
           <div><span style="color:var(--text-dim);">CAE (Mid-Sem):</span> <strong>${course.examScheme?.cae ?? 20} Marks</strong> (20%)</div>
           <div><span style="color:var(--text-dim);">ESE (End-Sem):</span> <strong>${course.examScheme?.ese ?? 60} Marks</strong> (60%)</div>
